@@ -43,6 +43,8 @@ private:
   void generateBlockMeta();
   void generateDstLst(Graph& g, vertex_t v);
   void generateQmeta(Graph& g, vertex_t v, int prio);
+   //Upload processed Graph to LM32 SoC via Etherbone
+  int upload();
 
 protected:
 
@@ -124,14 +126,18 @@ public:
   //Process Graph for uploading to LM32 SoC
   void prepareUpload(Graph& g);
 
-  //Upload processed Graph to LM32 SoC via Etherbone
-  int upload();
+ 
 
-  //Process and upload .dot file to to LM32 SoC via Etherbone
-  int uploadDot(const std::string& fn) { Graph gTmp; prepareUpload( parseDot(fn, gTmp)); return upload(); }
+  int add(const std::string& fn);
+  
 
-  //Process and remove .dot file from LM32 SoC via Etherbone
-  int removeDot(const std::string& fn);
+
+  //removes all nodes NOT in input file
+  int keep(const std::string& fn);
+
+  //removes all nodes in input file
+  int remove(const std::string& fn);
+
 
   int clear();
 

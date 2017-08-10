@@ -9,7 +9,9 @@
     if (lookupHash(hash) != NULL) std::cout << "Hash 0x" << std::hex << hash << " exists already" << std::endl;
     if (lookupVertex(v) != NULL) std::cout << "V 0x" << std::dec << v << " exists already" << std::endl;
     */
+    vPool[cpu].occupyChunk(adr);
     auto x = a.insert({cpu, adr, hash, v});
+
     return x.second;
   }
 
@@ -92,10 +94,10 @@
 
   }
 
-  bool AllocTable::syncBmps(AllocTable const &src) {
+  bool AllocTable::syncToAtBmps(AllocTable const &src) {
     //check of the number of memories is identical
     if(vPool.size() != src.vPool.size()) {return false;}
-    for (unsigned int i = 0; i < vPool.size(); i++ ) vPool[i].setBmp(src.vPool[i].getBmp());
+    for (unsigned int i = 0; i < vPool.size(); i++ ) { vPool[i].setBmp(src.vPool[i].getBmp()); vPool[i].syncPoolToBmp(); }
     return true;
   }
 
@@ -130,5 +132,5 @@
 
   AllocTable::AllocTable(AllocTable const &src) {
     this->a = src.a;
-    this->syncBmps(src);
+    this->syncToAtBmps(src);
   }  

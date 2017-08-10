@@ -5,6 +5,8 @@
 #include <iostream>
 #include "common.h"
 
+class Node;
+
 class Event;
 class Block;
 class Meta;
@@ -22,6 +24,7 @@ class DestList;
 
  class VisitorVertexWriter {
     std::ostream& out;
+    void nodeString(const Node& el) const;
     void eventString(const Event& el) const;
     void commandString(const Command& el) const;
   public:

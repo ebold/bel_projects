@@ -79,7 +79,10 @@ public:
   void clearMemories() { for (unsigned int i = 0; i < vPool.size(); i++ ) vPool[i].init(); }
   void removeMemories() { vPool.clear(); }
 
-  bool syncBmps(AllocTable const &src);
+  void updateBmps()  {for (unsigned int i = 0; i < vPool.size(); i++ ) vPool[i].syncBmpToPool();}
+  void updatePools() {for (unsigned int i = 0; i < vPool.size(); i++ ) vPool[i].syncPoolToBmp();}
+
+  bool syncToAtBmps(AllocTable const &src);
   bool setBmps(vBuf bmpData);
   vBuf getBmps();
 

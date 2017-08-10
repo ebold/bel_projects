@@ -15,12 +15,12 @@ void VisitorDownloadCrawler::setDefDst() const {
   auxAdr = writeBeBytesToLeNumber<uint32_t>(b + NODE_DEF_DEST_PTR);
   tmpAdr = at.intAdr2adr(cpu, auxAdr);
   auto* x = at.lookupAdr(cpu, tmpAdr);
-
+  if (tmpAdr == LM32_NULL_PTR) return;
   //std::cout << "cpu " << cpu << "InAdr: 0x" << std::hex << auxAdr << " Adr: 0x" << std::hex << tmpAdr <<  std::endl;
   if (x == NULL) {
     std::cout << "AtDown Entry not found !" <<  std::endl;
   }  
-  else if (tmpAdr != LM32_NULL_PTR) boost::add_edge(v, x->v, myEdge(sDD), g);
+  else  boost::add_edge(v, x->v, myEdge(sDD), g);
 
 }
 

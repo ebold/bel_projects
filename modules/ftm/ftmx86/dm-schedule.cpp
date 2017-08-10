@@ -147,8 +147,7 @@ int main(int argc, char* argv[]) {
         try {
 
           if(doUpdate) cdm.download();
-          cdm.prepareUpload(cdm.parseDot(inputFilename, g));
-          cdm.upload();
+          cdm.add(inputFilename);
           if(verbose) cdm.showUp(strip);
         } catch (std::runtime_error const& err) {
           std::cerr << std::endl << program << ": Failed to upload to CPU#"<< cpuIdx << ". Cause: " << err.what() << std::endl;
@@ -159,7 +158,7 @@ int main(int argc, char* argv[]) {
       if (inputFilename != NULL) {
         try {
           cdm.download();
-          cdm.removeDot(inputFilename);
+          cdm.remove(inputFilename);
           cdm.removeDotFromDict(inputFilename);
         } catch (std::runtime_error const& err) {
           std::cerr << std::endl << program << ": Failed to remove from CPU#"<< cpuIdx << ". Cause: " << err.what() << std::endl;

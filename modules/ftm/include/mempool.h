@@ -75,7 +75,7 @@ public:
 
   bool acquireChunk(uint32_t &adr);
   bool freeChunk(uint32_t &adr);
-  void removeChunk(uint32_t adr) { pool.erase(adr); }
+  void occupyChunk(uint32_t adr) { pool.erase(adr); }
 
   
 

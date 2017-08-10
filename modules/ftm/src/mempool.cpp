@@ -19,7 +19,7 @@ void MemPool::syncPoolToBmp() {
   for(unsigned int bitIdx = 0; bitIdx < bmpBits; bitIdx++) {
     if (bmp[bitIdx / 8] & (1 << (7 - bitIdx % 8))) {
       nodeAdr = sharedOffs + bitIdx * _MEM_BLOCK_SIZE;
-      removeChunk(nodeAdr);
+      occupyChunk(nodeAdr);
     }
   }
 }

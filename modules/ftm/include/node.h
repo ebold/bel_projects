@@ -15,6 +15,7 @@ class Node {
 
   const std::string&  name;
   const uint32_t&     hash;
+  const uint8_t&      cpu;
 
 
 protected:    
@@ -28,13 +29,14 @@ protected:
 
 public:
   
-  Node(const std::string& name, const uint32_t& hash, uint8_t (&b)[_MEM_BLOCK_SIZE], uint32_t flags) : name(name), hash(hash), b(b), flags(flags) {} //what to do if it fails?
+  Node(const std::string& name, const uint32_t& hash, const uint8_t& cpu, uint8_t (&b)[_MEM_BLOCK_SIZE], uint32_t flags) : name(name), hash(hash), cpu(cpu), b(b), flags(flags) {} //what to do if it fails?
   virtual ~Node() {}
   virtual node_ptr clone() const = 0; 
   
 
   const std::string&  getName() const {return this->name;}
   const uint32_t&     getHash() const {return this->hash;}
+  const uint8_t&      getCpu()  const {return this->cpu;}
   const uint32_t&     getFlags() const {return this->flags;}
   void     setFlags(uint32_t flags) {this->flags |= flags;}
   void     clrFlags(uint32_t flags) {this->flags &= ~flags;}
