@@ -14,18 +14,18 @@ const char defOutputFilename[] = "download.dot";
 static void help(const char *program) {
   fprintf(stderr, "\nUsage: %s <etherbone-device> <Command> <.dot file> \n", program);
   fprintf(stderr, "\n");
-  fprintf(stderr, "\nSchedule Generator. Creates Binary Data for the DataMaster (DM) from Schedule Graphs (.dot files) and\nuploads/downloads to/from CPU Core <m> of the DM (currently specified in Schedule as cpu=<m>. To render a downloaded, use the 'dot -Tpng -o<outputfile.dot>'\n");
+  fprintf(stderr, "\nSchedule Generator. Creates Binary Data for the DataMaster (DM) from Schedule Graphs (.dot files) and\nuploads/downloads to/from CPU Core <m> of the DM (CPU currently specified in schedule as cpu=<m>).\n");
   fprintf(stderr, "\nCommands:\n");
-  fprintf(stderr, "  status                    Gets current DM state (default) \n");
+  fprintf(stderr, "  status                    Gets current DM schedule state (default) \n");
   fprintf(stderr, "  clear                     Clear DM, existing nodes will be erased. \n");
   fprintf(stderr, "  add        <.dot file>    Add a Schedule from input file to DM, nodes with identical hashes (names) on the DM will be ignored.\n");
   fprintf(stderr, "  overwrite  <.dot file>    Overwrites all Schedules on DM with the one in the input file, already existing nodes on the DM will be erased. \n");
   fprintf(stderr, "  remove     <.dot file>    Removes the schedule in the input file from the DM, nodes with hashes (names) not present on the DM will be ignored \n");
   fprintf(stderr, "  keep       <.dot file>    Removes everything BUT the schedule in the input file from the DM, nodes with hashes (names) not present on the DM will be ignored.\n");
-  fprintf(stderr, "  -n                        no verify, status will not be read after upload\n");
+  fprintf(stderr, "  -n                        No verify, status will not be read after operation\n");
   fprintf(stderr, "  -o         <.dot file>    Specify output file name, default is '%s'\n", defOutputFilename);
-  fprintf(stderr, "  -s                        Show Meta Nodes. Download will not only contain schedules, but also queues etc \n");  
-  fprintf(stderr, "  -v                        verbose operation, print more details\n");
+  fprintf(stderr, "  -s                        Show Meta Nodes. Download will not only contain schedules, but also queues, etc. \n");  
+  fprintf(stderr, "  -v                        Verbose operation, print more details\n");
   fprintf(stderr, "\n");
 }
 
@@ -33,7 +33,7 @@ int main(int argc, char* argv[]) {
 
   Graph g;
 
-  bool update = true, verbose = false, strip=true;
+  bool update = true, verbose = false, strip=true, cmdValid = false;
 
   int opt;
   const char *program = argv[0];
@@ -132,11 +132,12 @@ int main(int argc, char* argv[]) {
     if ((cmd == "add" || cmd == "overwrite" || cmd == "remove" || cmd == "keep") && inputFilename == NULL) { std::cerr << std::endl << program << "Command <" << cmd << "> requires a .dot file" << std::endl; return -8; }
     
     try {
-      if (cmd == "clear")     { cdm.clear();}
-      if (cmd == "add")       { cdm.add(inputFilename);}
-      if (cmd == "overwrite") { cdm.overwrite(inputFilename);}
-      if (cmd == "remove")    { cdm.remove(inputFilename);}
-      if (cmd == "keep")      { cdm.keep(inputFilename);}
+      if (cmd == "clear")     { cdm.clear(); cmdValid = true;}
+      if (cmd == "add")       { cdm.add(inputFilename); cmdValid = true;}
+      if (cmd == "overwrite") { cdm.overwrite(inputFilename); cmdValid = true;}
+      if (cmd == "remove")    { cdm.remove(inputFilename); cmdValid = true;}
+      if (cmd == "keep")      { cdm.keep(inputFilename); cmdValid = true;}
+      if (cmd == "status")      { cdm.keep(inputFilename); cmdValid = true;}
       if(verbose) cdm.showUp(false);
     } catch (std::runtime_error const& err) {
       std::cerr << std::endl << program << ": Failed to execute <"<< cmd << ". Cause: " << err.what() << std::endl;
@@ -144,19 +145,23 @@ int main(int argc, char* argv[]) {
     }
   }
   
-  if ( (((cmdName != NULL) && (std::string(cmdName) == "status")) || cmdName == NULL) && update) {
+  if (cmdName == NULL ) cmdValid = true;
+
+  if ( ! cmdValid ) { std::cerr << std::endl << program << ": Unknown command <" << std::string(cmdName) << ">" << std::endl; return -8; }
+
+  if ( update ) {
     try { 
       cdm.download();
       cdm.writeDownDot(outputFilename, strip);
       if(verbose) cdm.showDown(false);
-      return 0;
+
     } catch (std::runtime_error const& err) {
       std::cerr << std::endl << program << ": Failed to execute <status>. Cause: " << err.what() << std::endl;
       return -7;
     }
   }
 
-  if (cmdName != NULL ) std::cerr << std::endl << program << ": Unknown command <" << std::string(cmdName) << ">" << std::endl;
+
     
   
 
