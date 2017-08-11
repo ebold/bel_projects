@@ -337,6 +337,7 @@ const std::string CarpeDM::needle(CarpeDM::deadbeef, CarpeDM::deadbeef + 4);
     atDown.updateBmps();
     //show("After Removal", "", DOWNLOAD, false );
     gUp.clear(); //create empty upload allocation table
+    atUp.clear(); //create empty upload allocation table
     atUp.syncToAtBmps(atDown); //use the bmps of the changed download allocation table for upload
 
     //because gUp Graph is empty, upload will only contain the reduced upload bmps, effectively deleting nodes
