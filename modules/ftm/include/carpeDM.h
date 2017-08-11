@@ -159,6 +159,8 @@ public:
   //Download binary from LM32 SoC and create Graph
   int download();
 
+  std::string createDownDot(bool filterMeta);
+
   //Write out processed Download Graph as .dot file
   void writeDownDot(const std::string& fn, bool filterMeta);
 

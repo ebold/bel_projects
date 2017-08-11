@@ -392,35 +392,40 @@ const std::string CarpeDM::needle(CarpeDM::deadbeef, CarpeDM::deadbeef + 4);
 
 
 
- //write out dotfile from download graph of a memunit
- void CarpeDM::writeDownDot(const std::string& fn, bool filterMeta) {
-    std::ofstream out(fn);
+ //write out dotstringfrom download graph
+ std::string CarpeDM::createDownDot(bool filterMeta) {
+    std::ostringstream out;
+
     Graph& g = gDown;
-
-
     typedef boost::property_map< Graph, node_ptr myVertex::* >::type NpMap;
 
     boost::filtered_graph <Graph, boost::keep_all, non_meta<NpMap> > fg(g, boost::keep_all(), make_non_meta(boost::get(&myVertex::np, g)));
-
-    if(out.good()) {
-      if (verbose) sLog << "Writing Output File " << fn << "... ";
-      try { 
-            
-            if (filterMeta) {
-              boost::write_graphviz(out, fg, make_vertex_writer(boost::get(&myVertex::np, fg)), 
-                          make_edge_writer(boost::get(&myEdge::type, fg)), sample_graph_writer{"Demo"},
-                          boost::get(&myVertex::name, fg));
-            }
-            else {
-            
-              boost::write_graphviz(out, g, make_vertex_writer(boost::get(&myVertex::np, g)), 
-                          make_edge_writer(boost::get(&myEdge::type, g)), sample_graph_writer{"Demo"},
-                          boost::get(&myVertex::name, g));
-            }
+    try { 
+        
+        if (filterMeta) {
+          boost::write_graphviz(out, fg, make_vertex_writer(boost::get(&myVertex::np, fg)), 
+                      make_edge_writer(boost::get(&myEdge::type, fg)), sample_graph_writer{"Demo"},
+                      boost::get(&myVertex::name, fg));
+        }
+        else {
+        
+          boost::write_graphviz(out, g, make_vertex_writer(boost::get(&myVertex::np, g)), 
+                      make_edge_writer(boost::get(&myEdge::type, g)), sample_graph_writer{"Demo"},
+                      boost::get(&myVertex::name, g));
+        }
       }
       catch(...) {throw;}
-      out.close();
-    }  
+
+    
+    return out.str();
+  }
+
+  //write out dotfile from download graph of a memunit
+ void CarpeDM::writeDownDot(const std::string& fn, bool filterMeta) {
+    std::ofstream out(fn);
+    
+    if (verbose) sLog << "Writing Output File " << fn << "... ";
+    if(out.good()) { out << createDownDot(filterMeta); }
     else {throw std::runtime_error(" Could not write to .dot file '" + fn + "'"); return;} 
     if (verbose) sLog << "Done.";
   }
