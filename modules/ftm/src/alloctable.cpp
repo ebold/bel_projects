@@ -97,7 +97,7 @@
   bool AllocTable::syncToAtBmps(AllocTable const &src) {
     //check of the number of memories is identical
     if(vPool.size() != src.vPool.size()) {return false;}
-    for (unsigned int i = 0; i < vPool.size(); i++ ) { vPool[i].setBmp(src.vPool[i].getBmp()); vPool[i].syncPoolToBmp(); }
+    for (unsigned int i = 0; i < vPool.size(); i++ ) { vPool[i].setBmp(src.vPool[i].getBmp());}
     return true;
   }
 

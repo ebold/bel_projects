@@ -71,7 +71,7 @@ const std::string CarpeDM::needle(CarpeDM::deadbeef, CarpeDM::deadbeef + 4);
     for(unsigned int i = 0; i < atUp.getMemories().size(); i++) {
       auto& tmpBmp = atUp.getMemories()[i].getBmp();
       //vHexDump("bmpUpb4", tmpBmp);
-      atUp.getMemories()[i].syncBmpToPool(); //sync Bmp to Pool
+      //atUp.getMemories()[i].syncBmpToPool(); //sync Bmp to Pool
       //vHexDump("bmpUpafter", tmpBmp);
       
       //std::cout << "test bmp size " << tmpBmp.size() << " iterator diff " << tmpBmp.end() - tmpBmp.begin()  << " aligned size " << atUp.getMemories()[i].bmpSize << " bits " << atUp.getMemories()[i].bmpBits << std::endl;
@@ -272,8 +272,11 @@ const std::string CarpeDM::needle(CarpeDM::deadbeef, CarpeDM::deadbeef + 4);
     atUp.clear();
     gUp.clear();
     atUp.syncToAtBmps(atDown);
+    atUp.updatePools();
 
     prepareUpload(parseDot(fn, gTmp));
+    atUp.updateBmps();
+
     return upload();
 
   }
@@ -329,14 +332,15 @@ const std::string CarpeDM::needle(CarpeDM::deadbeef, CarpeDM::deadbeef + 4);
       BOOST_FOREACH( vertex_t v, vertices(gUp) ) { 
         //hash = hm.lookup(boost::get_property(gTmp, boost::graph_name) + "." + gTmp[v].name).get();
         hash = hm.lookup(gUp[v].name).get();
-        if (atDown.lookupHash(hash) == NULL) sLog << "Hash not found" << std::endl;
+        if (atDown.lookupHash(hash) == NULL) {if(verbose) sLog << "Hash not found" << std::endl;}
         if (!(atDown.deallocate(hash))) { if(verbose) {sLog << "Node " << gUp[v].name << "(0x" << std::hex << hash << " could not be removed" << std::endl;}}
       }  
     }  catch (...) {
       //TODO report hash collision and show which names are responsible
       throw;
     }
-
+    atDown.updateBmps();
+    show("After Removal", "", DOWNLOAD, false );
 
     gUp.clear(); //create empty upload allocation table
     atUp.clear();

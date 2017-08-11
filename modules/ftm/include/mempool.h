@@ -59,7 +59,7 @@ public:
 
   void initBmp();
   void initPool();
-  void init() {initBmp(); initPool();}
+  void init() {initPool(); syncBmpToPool();}
   void syncPoolToBmp();
   bool syncBmpToPool();
 
