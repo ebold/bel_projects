@@ -12,16 +12,19 @@ const char defOutputFilename[] = "download.dot";
 
 
 static void help(const char *program) {
-  fprintf(stderr, "\nUsage: %s [OPTION] <etherbone-device> <input .dot file>\n", program);
+  fprintf(stderr, "\nUsage: %s <etherbone-device> <Command> <.dot file> \n", program);
   fprintf(stderr, "\n");
-  fprintf(stderr, "\nSchedule Generator. Creates Binary Data for the DataMaster (DM) from Schedule Graphs (.dot files) and\nuploads/downloads to/from CPU Core <m> of the DM. For download, a Schedule Graph is not manadatory ,\nbut hashes will not be resolved to node names. To render a download, use the 'dot -Tpng -o<outputfile.dot>'\n");
-  fprintf(stderr, "\nGeneral Options:\n");
-  fprintf(stderr, "  -c <cpu-idx>              Select CPU core by index, default is 0\n");
-  fprintf(stderr, "  -w                        Wipe Graph of selected CPU core\n");
-  fprintf(stderr, "  -a                        Add Graph from input file it to selected CPU core.\n");
-  fprintf(stderr, "  -r                        Remove Graph from input file from selected CPU core.\n");
-  fprintf(stderr, "  -o <output file>          Specify output file name, default is '%s'\n", defOutputFilename);
-  fprintf(stderr, "  -s                        Strip Meta Nodes. Download writes out only schedule paths, no queues etc \n");  
+  fprintf(stderr, "\nSchedule Generator. Creates Binary Data for the DataMaster (DM) from Schedule Graphs (.dot files) and\nuploads/downloads to/from CPU Core <m> of the DM (currently specified in Schedule as cpu=<m>. To render a downloaded, use the 'dot -Tpng -o<outputfile.dot>'\n");
+  fprintf(stderr, "\nCommands:\n");
+  fprintf(stderr, "  status                    Gets current DM state (default) \n");
+  fprintf(stderr, "  clear                     Clear DM, existing nodes will be erased. \n");
+  fprintf(stderr, "  add        <.dot file>    Add a Schedule from input file to DM, nodes with identical hashes (names) on the DM will be ignored.\n");
+  fprintf(stderr, "  overwrite  <.dot file>    Overwrites all Schedules on DM with the one in the input file, already existing nodes on the DM will be erased. \n");
+  fprintf(stderr, "  remove     <.dot file>    Removes the schedule in the input file from the DM, nodes with hashes (names) not present on the DM will be ignored \n");
+  fprintf(stderr, "  keep       <.dot file>    Removes everything BUT the schedule in the input file from the DM, nodes with hashes (names) not present on the DM will be ignored.\n");
+  fprintf(stderr, "  -n                        no verify, status will not be read after upload\n");
+  fprintf(stderr, "  -o         <.dot file>    Specify output file name, default is '%s'\n", defOutputFilename);
+  fprintf(stderr, "  -s                        Show Meta Nodes. Download will not only contain schedules, but also queues etc \n");  
   fprintf(stderr, "  -v                        verbose operation, print more details\n");
   fprintf(stderr, "\n");
 }
@@ -30,55 +33,33 @@ int main(int argc, char* argv[]) {
 
   Graph g;
 
-  bool doUpload = false, doUpdate = false, doRemove = false, doKeep = false, doClear = false, verbose = false, strip=false;
+  bool update = true, verbose = false, strip=true;
 
   int opt;
   const char *program = argv[0];
-  const char *netaddress, *inputFilename = NULL, *outputFilename = defOutputFilename;
-  int32_t tmp, error=0;
-  uint32_t cpuIdx = 0;
+  const char *netaddress, *inputFilename = NULL, *cmdName = NULL, *outputFilename = defOutputFilename;
+  int32_t error=0;
+
 
 // start getopt 
-   while ((opt = getopt(argc, argv, "warkshvc:o:")) != -1) {
+   while ((opt = getopt(argc, argv, "nshvo:")) != -1) {
       switch (opt) {
  
-         case 'w':
-            doClear  = true;
-            break;
-         
          case 'o':
             outputFilename  = optarg;
             break;
- 
-         case 'a':
-            doUpload = true;
-            doUpdate = true;
+
+         case 'n':
+            update = false;
             break;
-
-         case 'r':
-            doRemove = true;
-
-            break;
-
-         case 'k':
-            doKeep = true;
-            break;       
 
          case 'v':
             verbose = true;
             break;
 
          case 's':
-            strip = true;
+            strip = false;
             break;   
-
-         case 'c':
-            tmp = atol(optarg);
-            if (tmp < 0 || tmp > 8) {
-              std::cerr << std::endl << program << ": invalid cpu idx -- '" << optarg << "'" << std::endl;
-              error = -1;
-            } else {cpuIdx = (uint32_t)tmp;}
-            break;
 
          case 'h':
             help(program);
@@ -109,7 +90,9 @@ int main(int argc, char* argv[]) {
   //std::cerr << program << ": " << argc << " " << optind << " " << argv[optind] << " " << argv[optind+1] << " " << argv[optind+2] << " " << std::endl;   
 
    netaddress = argv[optind];
-   if (optind+1 < argc) inputFilename   = argv[optind+1];
+   
+   if (optind+1 < argc) cmdName        = argv[optind+1];
+   if (optind+2 < argc) inputFilename  = argv[optind+2];
 
    
 
@@ -137,52 +120,45 @@ int main(int argc, char* argv[]) {
   } else {
     if (cdm.getHashMap().size() == 0) std::cerr << std::endl << program << ": Warning - No Nodename/Hash dictionary available. Your download will show only hashes." << std::endl;
   }
-  
-  
-    if(doUpload | doUpdate) {
-      if (inputFilename != NULL) {
-        try {
 
-          if(doUpdate)  cdm.add(inputFilename);
-          else          cdm.overwrite(inputFilename);
-          if(verbose) cdm.showUp(strip);
-        } catch (std::runtime_error const& err) {
-          std::cerr << std::endl << program << ": Failed to upload to CPU#"<< cpuIdx << ". Cause: " << err.what() << std::endl;
-          return -6;
-        }
-      } else {std::cerr << program << ": Failed - a .dot file is required" << std::endl; return -7;}
-    } else if (doRemove | doKeep) {
-      if (inputFilename != NULL) {
-        try {
- 
-          if(doRemove) {
-            cdm.remove(inputFilename);
-            cdm.removeDotFromDict(inputFilename);
-          } else {
-            cdm.keep(inputFilename);
-            //cdm.keepDotinDict(inputFilename);
-          }
-        } catch (std::runtime_error const& err) {
-          std::cerr << std::endl << program << ": Failed to remove from CPU#"<< cpuIdx << ". Cause: " << err.what() << std::endl;
-          return -6;
-        }
-      } else {std::cerr << std::endl << program << ": Failed - a .dot file is required" << std::endl; return -7;}
-    } else if (doClear) {
-        cdm.clear();
-    }
-  
-  
+  cdm.getHashMap().store("dm.dict");
+
+
+  if (cmdName != NULL ) {
+
+
+    std::string cmd(cmdName);
+
+    if ((cmd == "add" || cmd == "overwrite" || cmd == "remove" || cmd == "keep") && inputFilename == NULL) { std::cerr << std::endl << program << "Command <" << cmd << "> requires a .dot file" << std::endl; return -8; }
     
+    try {
+      if (cmd == "clear")     { cdm.clear();}
+      if (cmd == "add")       { cdm.add(inputFilename);}
+      if (cmd == "overwrite") { cdm.overwrite(inputFilename);}
+      if (cmd == "remove")    { cdm.remove(inputFilename);}
+      if (cmd == "keep")      { cdm.keep(inputFilename);}
+      if(verbose) cdm.showUp(false);
+    } catch (std::runtime_error const& err) {
+      std::cerr << std::endl << program << ": Failed to execute <"<< cmd << ". Cause: " << err.what() << std::endl;
+      return -6;
+    }
+  }
+  
+  if ( (((cmdName != NULL) && (std::string(cmdName) == "status")) || cmdName == NULL) && update) {
     try { 
       cdm.download();
       cdm.writeDownDot(outputFilename, strip);
-      if(verbose) cdm.showDown(strip);
+      if(verbose) cdm.showDown(false);
+      return 0;
     } catch (std::runtime_error const& err) {
-      std::cerr << std::endl << program << ": Failed to download from CPU#"<< cpuIdx << " Cause: " << err.what() << std::endl;
+      std::cerr << std::endl << program << ": Failed to execute <status>. Cause: " << err.what() << std::endl;
       return -7;
     }
+  }
 
-  cdm.getHashMap().store("dm.dict");
+  if (cmdName != NULL ) std::cerr << std::endl << program << ": Unknown command <" << std::string(cmdName) << ">" << std::endl;
+    
+  
 
   cdm.disconnect();
 
