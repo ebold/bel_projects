@@ -30,7 +30,7 @@ int main(int argc, char* argv[]) {
 
   Graph g;
 
-  bool doUpload = false, doUpdate = false, doRemove = false, doClear = false, verbose = false, strip=false;
+  bool doUpload = false, doUpdate = false, doRemove = false, doKeep = false, doClear = false, verbose = false, strip=false;
 
   int opt;
   const char *program = argv[0];
@@ -39,13 +39,10 @@ int main(int argc, char* argv[]) {
   uint32_t cpuIdx = 0;
 
 // start getopt 
-   while ((opt = getopt(argc, argv, "rashvc:o:w")) != -1) {
+   while ((opt = getopt(argc, argv, "warkshvc:o:")) != -1) {
       switch (opt) {
  
          case 'w':
-            doUpload = false;
-            doUpdate = false;
-            doRemove = false;
             doClear  = true;
             break;
          
@@ -56,16 +53,16 @@ int main(int argc, char* argv[]) {
          case 'a':
             doUpload = true;
             doUpdate = true;
-            doRemove = false;
-            doClear  = false;
             break;
 
          case 'r':
-            doUpload = false;
-            doUpdate = false;
             doRemove = true;
-            doClear  = false;
-            break;  
+
+            break;
+
+         case 'k':
+            doKeep = true;
+            break;       
 
          case 'v':
             verbose = true;
@@ -146,20 +143,25 @@ int main(int argc, char* argv[]) {
       if (inputFilename != NULL) {
         try {
 
-          if(doUpdate) cdm.download();
-          cdm.add(inputFilename);
+          if(doUpdate)  cdm.add(inputFilename);
+          else          cdm.overwrite(inputFilename);
           if(verbose) cdm.showUp(strip);
         } catch (std::runtime_error const& err) {
           std::cerr << std::endl << program << ": Failed to upload to CPU#"<< cpuIdx << ". Cause: " << err.what() << std::endl;
           return -6;
         }
       } else {std::cerr << program << ": Failed - a .dot file is required" << std::endl; return -7;}
-    } else if (doRemove) {
+    } else if (doRemove | doKeep) {
       if (inputFilename != NULL) {
         try {
-          cdm.download();
-          cdm.remove(inputFilename);
-          cdm.removeDotFromDict(inputFilename);
+ 
+          if(doRemove) {
+            cdm.remove(inputFilename);
+            cdm.removeDotFromDict(inputFilename);
+          } else {
+            cdm.keep(inputFilename);
+            //cdm.keepDotinDict(inputFilename);
+          }
         } catch (std::runtime_error const& err) {
           std::cerr << std::endl << program << ": Failed to remove from CPU#"<< cpuIdx << ". Cause: " << err.what() << std::endl;
           return -6;

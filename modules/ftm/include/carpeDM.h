@@ -45,6 +45,13 @@ private:
   void generateQmeta(Graph& g, vertex_t v, int prio);
    //Upload processed Graph to LM32 SoC via Etherbone
   int upload();
+    //Parse a .dot file to create unprocessed Graph
+  Graph& parseDot(const std::string& fn, Graph& g);
+
+  //Process Graph for uploading to LM32 SoC
+  void prepareUpload(Graph& g);
+  void prepareKeep(const std::string& fn);
+  int  execKeep();
 
 protected:
 
@@ -120,26 +127,25 @@ public:
   //Clear the dictionary
   void clearDict();
   
-  //Parse a .dot file to create unprocessed Graph
-  Graph& parseDot(const std::string& fn, Graph& g);
 
-  //Process Graph for uploading to LM32 SoC
-  void prepareUpload(Graph& g);
 
  
-
-  int add(const std::string& fn);
-  
-
-
-  //removes all nodes NOT in input file
-  int keep(const std::string& fn);
-
-  //removes all nodes in input file
-  int remove(const std::string& fn);
-
-
-  int clear();
+  /////////////////////////////////////////////////////////////////////////////////////////////////
+  //  Schedule Manipulation                                                                      //
+  /////////////////////////////////////////////////////////////////////////////////////////////////
+  int add(const std::string& fn);                                                                //
+                                                                                                 //
+  int overwrite(const std::string& fn);                                                          //
+                                                                                                 //
+  //removes all nodes NOT in input file                                                          //
+  int keep(const std::string& fn);                                                               //
+                                                                                                 //
+  //removes all nodes in input file                                                              //
+  int remove(const std::string& fn);                                                             //
+  //clears all nodes from DM                                                                     //
+  int clear();                                                                                   //
+                                                                                                 //
+  /////////////////////////////////////////////////////////////////////////////////////////////////
 
   //Send a command to Block <targetName> on CPU <cpuIdx> via Etherbone
   int sendCmd(const std::string& targetName, uint8_t cmdPrio, mc_ptr mc); 

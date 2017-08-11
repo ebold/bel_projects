@@ -271,6 +271,7 @@ const std::string CarpeDM::needle(CarpeDM::deadbeef, CarpeDM::deadbeef + 4);
     Graph gTmp;
     atUp.clear();
     gUp.clear();
+    download();
     atUp.syncToAtBmps(atDown);
     atUp.updatePools();
 
@@ -282,31 +283,59 @@ const std::string CarpeDM::needle(CarpeDM::deadbeef, CarpeDM::deadbeef + 4);
   }
 
 
-  //removes all nodes NOT in input file
-  int CarpeDM::keep(const std::string& fn) {
+    int CarpeDM::overwrite(const std::string& fn) {
    
     Graph gTmp;
     atUp.clear();
     gUp.clear();
+    atUp.syncToAtBmps(atDown);
+    atUp.updatePools();
+
+    prepareUpload(parseDot(fn, gTmp));
+    atUp.updateBmps();
+
+    return upload();
+
+  }
+
+
+  int CarpeDM::keep(const std::string& fn) {
+    prepareKeep(fn);
+    download();
+    return execKeep();
+  }
+
+
+  void CarpeDM::prepareKeep(const std::string& fn) {
+    Graph gTmp;
+    atUp.clear();
+    gUp.clear();
     prepareUpload(parseDot(fn, gTmp)); 
+  }  
+
+  //removes all nodes NOT in input file
+  int CarpeDM::execKeep() {
     uint32_t hash;
     std::set<uint32_t> vHashes;
 
-
     //Get all downloaded Hashes
     for (auto& it : atDown.getTable().get<Hash>()) vHashes.insert(it.hash);
+
+    
+      
     //Strike all also present in the input file
-    BOOST_FOREACH( vertex_t v, vertices(gTmp) ) {   
-      hash = hm.lookup(gTmp[v].name).get();
+    BOOST_FOREACH( vertex_t v, vertices(gUp) ) {   
+      hash = hm.lookup(gUp[v].name).get();
       if (vHashes.count(hash) > 0) vHashes.erase(hash);
     }  
 
     //remove all nodes NOT in input file from download allocation table
     for (auto& itHash : vHashes) {
-      if (atDown.lookupHash(hash) == NULL) sLog << "Hash not found" << std::endl;
+      if (atDown.lookupHash(itHash) == NULL) { if(verbose) {sLog << "Node " << hm.lookup(itHash).get() << " was not present on DM" << std::endl;}}
       if (!(atDown.deallocate(itHash))) { if(verbose) {sLog << "Node " << hm.lookup(itHash).get() << " could not be removed" << std::endl;}}  
     }
-    
+    atDown.updateBmps();
+    //show("After Removal", "", DOWNLOAD, false );
     gUp.clear(); //create empty upload allocation table
     atUp.syncToAtBmps(atDown); //use the bmps of the changed download allocation table for upload
 
@@ -320,11 +349,10 @@ const std::string CarpeDM::needle(CarpeDM::deadbeef, CarpeDM::deadbeef + 4);
     Graph gTmp;
     atUp.clear();
     gUp.clear();
+    download();
     prepareUpload(parseDot(fn, gTmp));
 
     uint32_t hash;
-
-    show("DEBUG", "", DOWNLOAD, false );
 
     //remove all nodes in input file from download allocation table
     try {
@@ -332,7 +360,7 @@ const std::string CarpeDM::needle(CarpeDM::deadbeef, CarpeDM::deadbeef + 4);
       BOOST_FOREACH( vertex_t v, vertices(gUp) ) { 
         //hash = hm.lookup(boost::get_property(gTmp, boost::graph_name) + "." + gTmp[v].name).get();
         hash = hm.lookup(gUp[v].name).get();
-        if (atDown.lookupHash(hash) == NULL) {if(verbose) sLog << "Hash not found" << std::endl;}
+        if (atDown.lookupHash(hash) == NULL) { if(verbose) {sLog << "Node " << hm.lookup(hash).get() << " was not present on DM" << std::endl;}}
         if (!(atDown.deallocate(hash))) { if(verbose) {sLog << "Node " << gUp[v].name << "(0x" << std::hex << hash << " could not be removed" << std::endl;}}
       }  
     }  catch (...) {
@@ -340,7 +368,7 @@ const std::string CarpeDM::needle(CarpeDM::deadbeef, CarpeDM::deadbeef + 4);
       throw;
     }
     atDown.updateBmps();
-    show("After Removal", "", DOWNLOAD, false );
+    //show("After Removal", "", DOWNLOAD, false );
 
     gUp.clear(); //create empty upload allocation table
     atUp.clear();
@@ -396,7 +424,6 @@ const std::string CarpeDM::needle(CarpeDM::deadbeef, CarpeDM::deadbeef + 4);
     else {throw std::runtime_error(" Could not write to .dot file '" + fn + "'"); return;} 
     if (verbose) sLog << "Done.";
   }
-
 
 
 
