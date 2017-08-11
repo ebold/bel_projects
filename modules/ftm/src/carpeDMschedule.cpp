@@ -350,8 +350,9 @@ const std::string CarpeDM::needle(CarpeDM::deadbeef, CarpeDM::deadbeef + 4);
     Graph gTmp;
     atUp.clear();
     gUp.clear();
-    download();
+    
     prepareUpload(parseDot(fn, gTmp));
+    download();
 
     uint32_t hash;
 
