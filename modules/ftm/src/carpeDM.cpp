@@ -268,8 +268,8 @@ bool CarpeDM::connect(const std::string& en) {
     dp.property("cpu",      boost::get(&myVertex::cpu,      g));
     dp.property("type",     boost::get(&myVertex::type,     g));
     dp.property("flags",    boost::get(&myVertex::flags,    g));
-    dp.property("tPeriod",  boost::get(&myVertex::tPeriod,  g));
-    dp.property("tOffs",    boost::get(&myVertex::tOffs,    g));
+    dp.property("tperiod",  boost::get(&myVertex::tPeriod,  g));
+    dp.property("toffs",    boost::get(&myVertex::tOffs,    g));
     dp.property("id",       boost::get(&myVertex::id,       g));
     //ID sub fields
     dp.property("fid",      boost::get(&myVertex::id_fid,   g));
@@ -282,10 +282,13 @@ bool CarpeDM::connect(const std::string& en) {
     dp.property("par",      boost::get(&myVertex::par,      g));
     dp.property("tef",      boost::get(&myVertex::tef,      g));
     dp.property("res",      boost::get(&myVertex::res,      g));
-    dp.property("tValid",   boost::get(&myVertex::tValid,   g));
+    dp.property("tvalid",   boost::get(&myVertex::tValid,   g));
     dp.property("prio",     boost::get(&myVertex::prio,     g));
     dp.property("qty",      boost::get(&myVertex::qty,      g));
-    dp.property("tWait",    boost::get(&myVertex::tWait,    g));
+    dp.property("twait",    boost::get(&myVertex::tWait,    g));
+    //for .dot-cmd abuse
+    dp.property("dest",     boost::get(&myVertex::flowDest,   g));
+    dp.property("target",   boost::get(&myVertex::flowTarget, g));
 
     dp.property("qIl",      boost::get(&myVertex::qIl,   g));
     dp.property("qHi",      boost::get(&myVertex::qHi,   g));
@@ -394,8 +397,8 @@ bool CarpeDM::connect(const std::string& en) {
     if (!(hm.lookup(name))) {throw std::runtime_error( "Unknown Node Name"); return -1;} 
     hash = hm.lookup(name).get(); //just pass it on
     
-    auto* x = at.lookupHash(hash);
-    if (x == NULL)  {throw std::runtime_error( "Could not find Node in allocation table"); return -1;}
+    auto x = at.lookupHash(hash);
+    if (!(at.isOk(x)))  {throw std::runtime_error( "Could not find Node in allocation table"); return -1;}
     
     return x->cpu;
   }
@@ -406,8 +409,8 @@ bool CarpeDM::connect(const std::string& en) {
     uint32_t hash;
     if (!(hm.lookup(name))) {throw std::runtime_error( "Unknown Node Name"); return LM32_NULL_PTR;} 
     hash = hm.lookup(name).get(); //just pass it on
-    auto* x = at.lookupHash(hash);
-    if (x == NULL)  {throw std::runtime_error( "Could not find Node in allocation table"); return LM32_NULL_PTR;}
+    auto x = at.lookupHash(hash);
+    if (!(at.isOk(x)))  {throw std::runtime_error( "Could not find Node in allocation table"); return LM32_NULL_PTR;}
     else            {return (intExt == INTERNAL ? at.adr2intAdr(x->cpu, x->adr) : at.adr2extAdr(x->cpu, x->adr));}
   }
 

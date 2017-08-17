@@ -59,6 +59,9 @@ myVertex::myVertex(myVertex const &src) {
   //Wait
   this->tWait  = src.tWait;
 
+  //for .dot-cmd abuse
+  this->flowDest   = src.flowDest;
+  this->flowTarget = src.flowTarget;
   
 
 }

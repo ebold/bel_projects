@@ -33,7 +33,7 @@ class DestList;
     void setDefDst(void) const;
 
   public:
-    VisitorDownloadCrawler(Graph& g, vertex_t v, AllocTable& at)  : g(g), v(v), at(at) { auto* ae = at.lookupVertex(v); cpu = ae->cpu; b = ae->b; };
+    VisitorDownloadCrawler(Graph& g, vertex_t v, AllocTable& at)  : g(g), v(v), at(at) { auto x = at.lookupVertex(v); if (at.isOk(x)) {cpu = x->cpu; b = ((AllocMeta*)&(*x))->b;} };
     ~VisitorDownloadCrawler() {};
     virtual void visit(const Block& el) const;
     virtual void visit(const TimingMsg& el) const;

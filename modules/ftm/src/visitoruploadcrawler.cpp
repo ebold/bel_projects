@@ -20,6 +20,76 @@ const std::string sDRES  = "dynres";
 
 
 
+
+void VisitorUploadCrawler::updateStaging() const {
+  Graph::out_edge_iterator out_begin, out_end, out_cur;
+  // Staging Update by Depency Resolution
+    //
+    //allright, let's recap
+    // - BMPs are always (over)written during upload, node data only if the node is staged
+    // - an upload can currently consist of an addition or a removal, not both
+    // - if the user wants to add nodes, transfer of their binary data is staged for upload to DM
+    // - if the user wants to remove nodes, they are deallocated and thus their data has no staging (staged flag kept in alloctable entry) - their memory just gets freed in the BMP
+    //Staging dependant nodes
+    // - some unstaged nodes have depencies on staged nodes, causing their data to change. They must also be staged
+    //  - all out-edges of unstaged nodes connecting to staged (added) child nodes can cause a change of the parent's data
+    //  - all out-edges of unstaged nodes connecting to deallocated (removed) child nodes will cause a change of the parent's data
+    // - this is true for all out-edges except those marking alternative destinations (altdst). This does not affect the parent Block, but the Block's Destination List (listdst)
+    // - the additional staged nodes cannot cause further dependencies, because their allocation does not change
+
+    auto x = at.lookupVertex(v);
+    
+    if (!(at.isOk(x))) {return; } //this vertex was removed, we don't need to bother about staging
+    
+    if (!(x->staged)) {
+      boost::tie(out_begin, out_end) = out_edges(v, g);  
+      for (out_cur = out_begin; out_cur != out_end; ++out_cur) {
+        auto child = at.lookupVertex(target(*out_cur, g));
+        if (at.isOk(child) || child->staged) { //it's an out edge to removed child node OR an out edge to added child node
+          at.setStaged(x); // stage current node
+        } 
+      }  
+    }
+    
+}
+
+void VisitorUploadCrawler::updateListDstStaging(amI x) const {
+  Graph::out_edge_iterator out_begin, out_end, out_cur;
+
+  if (g[*out_cur].type == sAD) { 
+    // this is edge leads to  staged Alternative Dst, find this Block's Dst List 
+    boost::tie(out_begin, out_end) = out_edges(x->v,g);  
+    for (out_cur = out_begin; out_cur != out_end; ++out_cur) {
+      if (g[target(*out_cur,g)].type == sDL) {
+        auto dst = at.lookupHash(g[target(*out_cur,g)].np->getHash());
+        if (at.isOk(dst)) at.setStaged(dst); // if we found a Dst List, stage it
+        else throw std::runtime_error("Dst List '" + g[dst->v].name + "' was not allocated, this is very bad");
+        break;
+      }
+    }
+  }
+}
+
+void VisitorUploadCrawler::updateBlockStaging() const {
+  Graph::out_edge_iterator out_begin, out_end, out_cur;
+
+  auto x = at.lookupVertex(v);
+  
+  if (!(at.isOk(x))) {return; } //this vertex was removed, we don't need to bother about staging
+  
+  if (!(x->staged)) {
+    boost::tie(out_begin, out_end) = out_edges(v, g);  
+    for (out_cur = out_begin; out_cur != out_end; ++out_cur) {
+      auto child = at.lookupVertex(target(*out_cur, g));
+      if (at.isOk(child) || child->staged) { //it's an out edge to removed child node OR an out edge to added child node
+        at.setStaged(x);  // stage our current Block
+        updateListDstStaging(x); // stage its Destination List
+      } 
+    }  
+  }
+    
+}  
+
 void VisitorUploadCrawler::visit(const Block& el) const {
   vAdr vA, tmpDD, tmpQM;
   tmpDD = getDefDst();
@@ -30,6 +100,7 @@ void VisitorUploadCrawler::visit(const Block& el) const {
   vA.insert( vA.end(), tmpQM.begin(), tmpQM.end() );
 
   el.serialise(vA);
+  updateBlockStaging();
 }
 
 void VisitorUploadCrawler::visit(const TimingMsg& el) const  {
@@ -43,6 +114,7 @@ void VisitorUploadCrawler::visit(const TimingMsg& el) const  {
 
 
   el.serialise(vA);
+  updateStaging();  
 }
 
 void VisitorUploadCrawler::visit(const Flow& el) const  {
@@ -57,6 +129,7 @@ void VisitorUploadCrawler::visit(const Flow& el) const  {
   vA.insert( vA.end(), tmpFD.begin(), tmpFD.end() );
 
   el.serialise(vA);
+  updateStaging();  
 
 }
 
@@ -70,6 +143,7 @@ void VisitorUploadCrawler::visit(const Flush& el) const {
   vA.insert( vA.end(), tmpCT.begin(), tmpCT.end() );
 
   el.serialise(vA);
+  updateStaging();  
 
 }
 
@@ -83,7 +157,7 @@ void VisitorUploadCrawler::visit(const Noop& el) const {
   vA.insert( vA.end(), tmpCT.begin(), tmpCT.end() );
 
   el.serialise(vA);
-
+  updateStaging();
 }
 
 void VisitorUploadCrawler::visit(const Wait& el) const {
@@ -96,7 +170,7 @@ void VisitorUploadCrawler::visit(const Wait& el) const {
   vA.insert( vA.end(), tmpCT.begin(), tmpCT.end() );
 
   el.serialise(vA);
-
+  updateStaging();
 }
 
 void VisitorUploadCrawler::visit(const CmdQMeta& el) const {
@@ -109,10 +183,12 @@ void VisitorUploadCrawler::visit(const CmdQMeta& el) const {
   vA.insert( vA.end(), tmpQB.begin(), tmpQB.end() );
 
   el.serialise(vA);
+  updateStaging();  
 }
 
 void VisitorUploadCrawler::visit(const CmdQBuffer& el) const {
   el.serialise(getDefDst());
+  //can't have children, not staging update
 }
 
 void VisitorUploadCrawler::visit(const DestList& el) const {
@@ -120,6 +196,7 @@ void VisitorUploadCrawler::visit(const DestList& el) const {
   vAdr vA, tmpDL;
   tmpDL = getListDst();
   el.serialise(tmpDL);
+  //can't have children, not staging update
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -144,7 +221,7 @@ void VisitorUploadCrawler::visit(const DestList& el) const {
           if (found) {std::cerr << "!!! Found more than one default destination !!!" << std::endl; break;
           } else {
             
-            auto* x = at.lookupVertex(target(*out_cur,g));
+            auto x = at.lookupVertex(target(*out_cur,g));
             // Destination MUST NOT lie outside own memory! (well, technically, it'd' work, but it'd be race condition galore ...)
             if (x != NULL && x->cpu == cpu) {
               ret.push_back(at.adr2intAdr(x->cpu, x->adr));
@@ -180,14 +257,14 @@ void VisitorUploadCrawler::visit(const DestList& el) const {
         if (g[*out_cur].type == sDID) {
           if (aId != LM32_NULL_PTR) {std::cerr << "!!! Found more than one dynamic id source !!!" << std::endl; break;
           } else {
-            auto* x = at.lookupVertex(target(*out_cur,g));
+            auto x = at.lookupVertex(target(*out_cur,g));
             if (x != NULL) { aId = at.adr2extAdr(x->cpu, x->adr); g[v].np->setFlags(NFLG_TMSG_DYN_ID_SMSK);}
           }
         }
         if (g[*out_cur].type == sDPAR0) {
           if (aPar0 != LM32_NULL_PTR) {std::cerr << "!!! Found more than one dynamic par0 source !!!" << std::endl; break;
           } else {
-            auto* x = at.lookupVertex(target(*out_cur,g));
+            auto x = at.lookupVertex(target(*out_cur,g));
             if (x != NULL) { aPar0 = at.adr2extAdr(x->cpu, x->adr); g[v].np->setFlags(NFLG_TMSG_DYN_PAR0_SMSK);}
             //std::cout << "DynAdr 0 0x" << std::hex << aPar0 << std::endl;
           }
@@ -195,7 +272,7 @@ void VisitorUploadCrawler::visit(const DestList& el) const {
         if (g[*out_cur].type == sDPAR1) {
           if (aPar1 != LM32_NULL_PTR) {std::cerr << "!!! Found more than one dynamic par1 source !!!" << std::endl; break;
           } else {
-            auto* x = at.lookupVertex(target(*out_cur,g));
+            auto x = at.lookupVertex(target(*out_cur,g));
             if (x != NULL) { aPar1 = at.adr2extAdr(x->cpu, x->adr); g[v].np->setFlags(NFLG_TMSG_DYN_PAR1_SMSK);}
             //std::cout << "DynAdr 1 0x" << std::hex << aPar1 << std::endl;
           }
@@ -203,14 +280,14 @@ void VisitorUploadCrawler::visit(const DestList& el) const {
         if (g[*out_cur].type == sDTEF) {
           if (aTef != LM32_NULL_PTR) {std::cerr << "!!! Found more than one dynamic tef source !!!" << std::endl; break;
           } else {
-            auto* x = at.lookupVertex(target(*out_cur,g));
+            auto x = at.lookupVertex(target(*out_cur,g));
             if (x != NULL) { aTef = at.adr2extAdr(x->cpu, x->adr); g[v].np->setFlags(NFLG_TMSG_DYN_TEF_SMSK);}
           }
         }
         if (g[*out_cur].type == sDRES) {
           if (aRes != LM32_NULL_PTR) {std::cerr << "!!! Found more than one dynamic res source !!!" << std::endl; break;
           } else {
-            auto* x = at.lookupVertex(target(*out_cur,g));
+            auto x = at.lookupVertex(target(*out_cur,g));
             if (x != NULL) { aRes = at.adr2extAdr(x->cpu, x->adr); g[v].np->setFlags(NFLG_TMSG_DYN_RES_SMSK);}
           }
         }
@@ -244,7 +321,7 @@ void VisitorUploadCrawler::visit(const DestList& el) const {
         if (g[target(*out_cur,g)].np->isMeta() && g[target(*out_cur,g)].type == sDL) {
           if (found) {std::cerr << "!!! Found more than one Destination List !!!" << std::endl; break;
           } else {
-            auto* x = at.lookupVertex(target(*out_cur,g));
+            auto x = at.lookupVertex(target(*out_cur,g));
             // Queue nodes MUST NOT lie outside own memory!
             if (x != NULL && x->cpu == cpu) {
               ret.push_back(at.adr2intAdr(x->cpu, x->adr));
@@ -266,7 +343,7 @@ void VisitorUploadCrawler::visit(const DestList& el) const {
           if (g[target(*out_cur,g)].np->isMeta() && g[*out_cur].type == sQM[idx]) {
             if (found) {std::cerr << "!!! Found more than one queue info of type " << sQM[idx] << " !!!" << std::endl; break;}
             else {
-              auto* x = at.lookupVertex(target(*out_cur,g));
+              auto x = at.lookupVertex(target(*out_cur,g));
               // Queue nodes MUST NOT lie outside own memory!
               if (x != NULL && x->cpu == cpu) {
                 ret.push_back(at.adr2intAdr(x->cpu, x->adr));
@@ -297,7 +374,7 @@ vAdr VisitorUploadCrawler::getQBuf() const {
     else {
 
       if (g[target(*out_cur,g)].np->isMeta()) {
-        auto* x = at.lookupVertex(target(*out_cur,g));
+        auto x = at.lookupVertex(target(*out_cur,g));
         // Queue nodes MUST NOT lie outside own memory!
         if (x != NULL && x->cpu == cpu) {
           ret.push_back(at.adr2intAdr(x->cpu, x->adr));
@@ -328,7 +405,7 @@ vAdr VisitorUploadCrawler::getCmdTarget(Command& el) const {
       if (!(g[target(*out_cur,g)].np->isMeta()) && g[*out_cur].type == sTG) {
         if (found) {std::cerr << "!!! Found more than one target !!!" << std::endl; break;
         } else {
-          auto* x = at.lookupVertex(target(*out_cur,g));
+          auto x = at.lookupVertex(target(*out_cur,g));
           if (x != NULL) {
             //command cross over to other CPUs is okay, handle by checking if caller cpu idx is different to found child cpu idx
             //std::cout << "Caller CPU " << int(cpu) << " Callee CPU " << (int)x->cpu << std::endl;
@@ -368,7 +445,7 @@ vAdr VisitorUploadCrawler::getFlowDst() const {
       if (!(g[target(*out_cur,g)].np->isMeta()) && g[*out_cur].type == sTG) {
         if (found) {std::cerr << "!!! Found more than one target !!!" << std::endl; break;
         } else {
-          auto* x = at.lookupVertex(target(*out_cur,g));
+          auto x = at.lookupVertex(target(*out_cur,g));
           //command cross over to other CPUs is okay. Find out what Cpu the command target is on
           if (x != NULL) { targetCpu = x->cpu; }
         }
@@ -384,7 +461,7 @@ vAdr VisitorUploadCrawler::getFlowDst() const {
       if (!(g[target(*out_cur,g)].np->isMeta()) && g[*out_cur].type == sFD) {
         if (found) {std::cerr << "!!! Found more than one flow destination !!!" << std::endl; break;
         } else {
-          auto* x = at.lookupVertex(target(*out_cur,g));
+          auto x = at.lookupVertex(target(*out_cur,g));
           // Flow Destination must be in the same memory the command target is in
           if (x != NULL && x->cpu == targetCpu) {
             ret.push_back(at.adr2intAdr(x->cpu, x->adr));
@@ -426,7 +503,7 @@ vAdr VisitorUploadCrawler::getListDst() const {
       if (!(g[target(*out_cur,g)].np->isMeta()) && g[*out_cur].type == sDD) {
         if (found) {std::cerr << "!!! Found more than one default destination !!!" << std::endl; break;
         } else {
-          auto* x = at.lookupVertex(target(*out_cur,g));
+          auto x = at.lookupVertex(target(*out_cur,g));
           // Destination MUST NOT lie outside own memory! (well, technically, it'd work, but it'd be race condition galore ...)
           if (x != NULL && x->cpu == cpu) {
             ret.push_back(at.adr2intAdr(x->cpu, x->adr));
@@ -446,7 +523,7 @@ vAdr VisitorUploadCrawler::getListDst() const {
     else {
 
       if (!(g[target(*out_cur,g)].np->isMeta()) && g[*out_cur].type == sAD) {
-        auto* x = at.lookupVertex(target(*out_cur,g));
+        auto x = at.lookupVertex(target(*out_cur,g));
         // Destination MUST NOT lie outside own memory! (well, technically, it'd work, but it'd be race condition galore ...)
         if (x != NULL && x->cpu == cpu) {
           ret.push_back(at.adr2intAdr(x->cpu, x->adr));

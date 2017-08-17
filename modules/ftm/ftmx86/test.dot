@@ -3,6 +3,7 @@ name="helloadv";
 
 graph []
 edge  [type="defdst"]
+node [qLo="1", qHi="1", qIl="1"];
 
 subgraph cpu0 {
   node  [cpu="0"];

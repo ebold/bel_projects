@@ -74,7 +74,7 @@ public:
   uint32_t getUsedSpace()     const { return nodeQty - (pool.size() * _MEM_BLOCK_SIZE); }
 
   bool acquireChunk(uint32_t &adr);
-  bool freeChunk(uint32_t &adr);
+  bool freeChunk(uint32_t adr);
   void occupyChunk(uint32_t adr) { pool.erase(adr); }
 
   

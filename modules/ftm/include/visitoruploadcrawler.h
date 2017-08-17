@@ -28,7 +28,9 @@ class VisitorUploadCrawler {
     AllocTable&     at;
     uint8_t         cpu;
 
-
+    void updateStaging() const;
+    void updateListDstStaging(amI x) const;
+    void updateBlockStaging() const;
     vAdr getDefDst(void)    const;
     vAdr getDynSrc(void)    const;
     vAdr getQInfo(void)     const;
@@ -38,7 +40,7 @@ class VisitorUploadCrawler {
     vAdr getListDst(void)   const;
 
   public:
-    VisitorUploadCrawler(Graph& g, vertex_t v, AllocTable& at)  : g(g), v(v), at(at) { auto* ae = at.lookupVertex(v); if (ae != NULL) cpu = ae->cpu; else throw std::runtime_error(g[v].name + "cpu lookup failed ... crawler upload");};
+    VisitorUploadCrawler(Graph& g, vertex_t v, AllocTable& at)  : g(g), v(v), at(at) { auto x = at.lookupVertex(v); if (at.isOk(x)) cpu = x->cpu; else throw std::runtime_error(g[v].name + "cpu lookup failed ... crawler upload");};
     ~VisitorUploadCrawler() {};
     virtual void visit(const Block& el) const;
     virtual void visit(const TimingMsg& el) const;

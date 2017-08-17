@@ -36,54 +36,52 @@ public:
   //Meta
 
   //Block 
-  std::string tPeriod;
-  std::string rdIdxIl, rdIdxHi, rdIdxLo;
-  std::string wrIdxIl, wrIdxHi, wrIdxLo;
+  std::string tPeriod = "0xD15EA5EDDEADBEEF";
+  std::string rdIdxIl = "0", rdIdxHi = "0", rdIdxLo = "0";
+  std::string wrIdxIl = "0", wrIdxHi = "0", wrIdxLo = "0";
 
   //Event
-  std::string tOffs;
+  std::string tOffs = "0xD15EA5EDDEADBEEF";
 
   //Timing Message
-  std::string id;
-  std::string id_fid;
+  std::string id = "0xD15EA5EDDEADBEEF";
+  std::string id_fid ;
   std::string id_gid;
   std::string id_evtno;
   std::string id_sid;
   std::string id_bpid;
   std::string id_res;
 
-  std::string par;
-  std::string tef;
-  std::string res;
+  std::string par = "0xD15EA5EDDEADBEEF";
+  std::string tef = "0";
+  std::string res = "0";
 
   //Command
 
-  std::string tValid;
+  std::string tValid = "0xD15EA5EDDEADBEEF";
 
 
   // Flush
 
-  std::string qIl, qHi, qLo;
+  std::string qIl = "0", qHi = "0", qLo = "0";
 
-  std::string frmIl, toIl;
-  std::string frmHi, toHi;
-  std::string frmLo, toLo; 
+  std::string frmIl = "0", toIl = "0";
+  std::string frmHi = "0", toHi = "0";
+  std::string frmLo = "0", toLo = "0"; 
 
   //Flow, Noop
-  std::string prio;
-  std::string qty;
+  std::string prio = "0";
+  std::string qty = "1";
 
   //Wait
-  std::string tWait;
+  std::string tWait = "0xD15EA5EDDEADBEEF";
 
-  myVertex() : name("UNDEFINED"), cpu("0"), hash(0xDEADBEEF), np(NULL), type("UNDEFINED"), flags("0xDEADBEEF"), tPeriod("0xD15EA5EDDEADBEEF"), rdIdxIl("0"), rdIdxHi("0"), rdIdxLo("0"), 
-  wrIdxIl("0"), wrIdxHi("0"), wrIdxLo("0"), tOffs("0xD15EA5EDDEADBEEF"), id("0xD15EA5EDDEADBEEF"), id_fid("0"), id_gid("0"), id_evtno("0"), id_sid("0"), id_bpid("0"), id_res("0"),
-  par("0xD15EA5EDDEADBEEF"), tef("0"), res("0"), tValid("0xD15EA5EDDEADBEEF"),
-  qIl("0"), qHi("0"), qLo("0"), frmIl("0"), toIl("0"), frmHi("0"), toHi("0"), frmLo("0"), toLo("0"), prio("0"), qty("1"), tWait("0xD15EA5EDDEADBEEF") {}
+  std::string flowDest = "0";
+  std::string flowTarget = "0";
+
+  myVertex() : name("UNDEFINED"), cpu("0"), hash(0xDEADBEEF), np(NULL), type("UNDEFINED"), flags("0xDEADBEEF") {}
   
-  myVertex(std::string name, std::string cpu, uint32_t hash, node_ptr np, std::string type, std::string flags) : name(name), cpu(cpu), hash(hash), np(np), type(type), flags(flags), tPeriod("0xD15EA5EDDEADBEEF"),
-  rdIdxIl("0"), rdIdxHi("0"), rdIdxLo("0"), wrIdxIl("0"), wrIdxHi("0"), wrIdxLo("0"), tOffs("0xD15EA5EDDEADBEEF"), id("0xD15EA5EDDEADBEEF"), id_fid("0"), id_gid("0"), id_evtno("0"), id_sid("0"), id_bpid("0"), id_res("0"),
-  par("0xD15EA5EDDEADBEEF"), tef("0"), res("0"), tValid("0xD15EA5EDDEADBEEF"), qIl("0"), qHi("0"), qLo("0"), frmIl("0"), toIl("0"), frmHi("0"), toHi("0"), frmLo("0"), toLo("0"), prio("0"), qty("1"), tWait("0xD15EA5EDDEADBEEF") {}
+  myVertex(std::string name, std::string cpu, uint32_t hash, node_ptr np, std::string type, std::string flags) : name(name), cpu(cpu), hash(hash), np(np), type(type), flags(flags) {}
 
   //deep copy
   myVertex(myVertex const &aSource);

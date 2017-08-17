@@ -49,9 +49,8 @@ const std::string CarpeDM::needle(CarpeDM::deadbeef, CarpeDM::deadbeef + 4);
 
     //add all Node addresses to return vector
     for (auto& it : atUp.getTable().get<CpuAdr>()) {
-      //generate addresses of node's address range
-      //std::cout << "cpu " << it.cpu << std::hex << "node 0x" << atUp.adr2extAdr(it.cpu, it.adr) << std::endl; 
-      for (adr = atUp.adr2extAdr(it.cpu, it.adr); adr < atUp.adr2extAdr(it.cpu, it.adr + _MEM_BLOCK_SIZE); adr += _32b_SIZE_ ) ret.push_back(adr);
+      //generate address range for all nodes staged for upload
+      if(it.staged) { for (adr = atUp.adr2extAdr(it.cpu, it.adr); adr < atUp.adr2extAdr(it.cpu, it.adr + _MEM_BLOCK_SIZE); adr += _32b_SIZE_ ) ret.push_back(adr); }
     }    
     return ret;
   }
@@ -81,7 +80,7 @@ const std::string CarpeDM::needle(CarpeDM::deadbeef, CarpeDM::deadbeef + 4);
     //std::cout << "passed bmp" << std::endl;
     //add all node buffers to return vector  
     for (auto& it : atUp.getTable().get<CpuAdr>()) { 
-      ret.insert( ret.end(), it.b, it.b + _MEM_BLOCK_SIZE );
+      if(it.staged) ret.insert( ret.end(), it.b, it.b + _MEM_BLOCK_SIZE ); // add all nodes staged for upload
     }
     //std::cout << "passed nodes" << std::endl;
     return ret;
@@ -144,6 +143,7 @@ const std::string CarpeDM::needle(CarpeDM::deadbeef, CarpeDM::deadbeef + 4);
     }  
   }
 
+        
 
   void CarpeDM::prepareUpload(Graph& g) {
     std::string cmp;
@@ -166,7 +166,9 @@ const std::string CarpeDM::needle(CarpeDM::deadbeef, CarpeDM::deadbeef + 4);
     generateBlockMeta();
     
 
-    //allocate and init all nodes
+
+
+    //allocate/insert and init all nodes
     BOOST_FOREACH( vertex_t v, vertices(gUp) ) {
       //std::string name = boost::get_property(gUp, boost::graph_name) + "." + gUp[v].name;
       std::string name = gUp[v].name;
@@ -174,19 +176,23 @@ const std::string CarpeDM::needle(CarpeDM::deadbeef, CarpeDM::deadbeef + 4);
       hash = hm.lookup(name).get();
       cpu  = s2u<uint8_t>(gUp[v].cpu);
       //FIXME Careful! CPU indices in the (intermediary) .dot do not necessarily match the vector indices. Use the fucking cpuIdx map to translate!
-      if (atDown.lookupHash(hash) != NULL)      {
-        existingNames.push_back(name);
-        continue;
-      }
-      //  throw std::runtime_error("Node '" + name + "' already present on DM.\nThe combination <graphname.nodename> must be unique."); return; } 
-      allocState = atUp.allocate(cpu, hash, v);
-      if (allocState == ALLOC_NO_SPACE)         {throw std::runtime_error("Not enough space in CPU " + std::to_string(cpu) + " memory pool"); return; }
-      if (allocState == ALLOC_ENTRY_EXISTS)     {throw std::runtime_error("Node '" + name + "' would be duplicate in graph."); return; }
 
-     
-      // this means alloc went okay
-      auto* x = atUp.lookupVertex(v);
+
+      auto it = atUp.lookupHash(hash); //if we already have an entry, keep all, but update vertex index
+      if (atUp.isOk(it)) {
+        existingNames.push_back(name);
+        atUp.setV(it, v); //vertex index must be correct for OUR graph, don't care about download side
+        atUp.clrStaged(it);
+      } else {
+        //  
+        allocState = atUp.allocate(cpu, hash, v, true);
+        if (allocState == ALLOC_NO_SPACE)         {throw std::runtime_error("Not enough space in CPU " + std::to_string(cpu) + " memory pool"); return; }
+        if (allocState == ALLOC_ENTRY_EXISTS)     {throw std::runtime_error("Node '" + name + "' would be duplicate in graph."); return; }
+        // getting here means alloc went okay
+      }  
       
+      //TODO find something nicer here  
+      auto x = ((AllocMeta*)&(*it)); //nasty, but othwise the buffer array at x->b will become const ...
 
       cmp = gUp[v].type;
       
@@ -216,18 +222,12 @@ const std::string CarpeDM::needle(CarpeDM::deadbeef, CarpeDM::deadbeef + 4);
       else if (cmp == "listdst")  {gUp[v].np = (node_ptr) new        DestList(gUp[v].name, x->hash, x->cpu, x->b, 0);}
       else if (cmp == "qbuf")     {gUp[v].np = (node_ptr) new      CmdQBuffer(gUp[v].name, x->hash, x->cpu, x->b, 0);}
       else if (cmp == "meta")     {throw std::runtime_error("Pure meta type not yet implemented"); return;}
-      else                        {throw std::runtime_error("Node <" + gUp[v].name + ">'s type <" + cmp + "> is not supported!\nMost likely you forgot to set the type attribute or accidentally created the node by a typo in an edge definition."); return;} 
-
-  
-    }
-
-
+      else                        {throw std::runtime_error("Node <" + gUp[v].name + ">'s type <" + cmp + "> is not supported!\nMost likely you forgot to set the type attribute or accidentally created the node by a typo in an edge definition."); return;}
+    }  
 
 
 
     BOOST_FOREACH( vertex_t v, vertices(gUp) ) {
-      if (atDown.lookupHash(hm.lookup(gUp[v].name).get()) != NULL)      {continue; } 
-      //serialise node
       gUp[v].np->accept(VisitorUploadCrawler(gUp, v, atUp)); 
    
       //Check if all mandatory fields were properly initialised
@@ -253,8 +253,10 @@ const std::string CarpeDM::needle(CarpeDM::deadbeef, CarpeDM::deadbeef + 4);
         for (auto& it : existingNames) sLog << it << std::endl;
       }    
     }
-  }
   
+  }
+
+ 
 
   int CarpeDM::upload() {
     vBuf vUlD = getUploadData();
@@ -269,12 +271,11 @@ const std::string CarpeDM::needle(CarpeDM::deadbeef, CarpeDM::deadbeef + 4);
   int CarpeDM::add(const std::string& fn) {
    
     Graph gTmp;
-    atUp.clear();
     gUp.clear();
     download();
-    atUp.syncToAtBmps(atDown);
-    atUp.updatePools();
-
+    atUp = atDown;
+    copy_graph(gDown, gUp);
+    
     prepareUpload(parseDot(fn, gTmp));
     atUp.updateBmps();
 
@@ -288,9 +289,6 @@ const std::string CarpeDM::needle(CarpeDM::deadbeef, CarpeDM::deadbeef + 4);
     Graph gTmp;
     atUp.clear();
     gUp.clear();
-    atUp.syncToAtBmps(atDown);
-    atUp.updatePools();
-
     prepareUpload(parseDot(fn, gTmp));
     atUp.updateBmps();
 
@@ -331,15 +329,13 @@ const std::string CarpeDM::needle(CarpeDM::deadbeef, CarpeDM::deadbeef + 4);
 
     //remove all nodes NOT in input file from download allocation table
     for (auto& itHash : vHashes) {
-      if (atDown.lookupHash(itHash) == NULL) { if(verbose) {sLog << "Node " << hm.lookup(itHash).get() << " was not present on DM" << std::endl;}}
+      if (!(atDown.isOk(atDown.lookupHash(itHash)))) { if(verbose) {sLog << "Node " << hm.lookup(itHash).get() << " was not present on DM" << std::endl;}}
       if (!(atDown.deallocate(itHash))) { if(verbose) {sLog << "Node " << hm.lookup(itHash).get() << " could not be removed" << std::endl;}}  
     }
     atDown.updateBmps();
     //show("After Removal", "", DOWNLOAD, false );
-    gUp.clear(); //create empty upload allocation table
-    atUp.clear(); //create empty upload allocation table
     atUp.syncToAtBmps(atDown); //use the bmps of the changed download allocation table for upload
-
+    atUp.unstageAll(); // node nodes will be uploaded, only the bmp
     //because gUp Graph is empty, upload will only contain the reduced upload bmps, effectively deleting nodes
     return upload();
 
@@ -362,7 +358,7 @@ const std::string CarpeDM::needle(CarpeDM::deadbeef, CarpeDM::deadbeef + 4);
       BOOST_FOREACH( vertex_t v, vertices(gUp) ) { 
         //hash = hm.lookup(boost::get_property(gTmp, boost::graph_name) + "." + gTmp[v].name).get();
         hash = hm.lookup(gUp[v].name).get();
-        if (atDown.lookupHash(hash) == NULL) { if(verbose) {sLog << "Node " << hm.lookup(hash).get() << " was not present on DM" << std::endl;}}
+        if (!(atDown.isOk(atDown.lookupHash(hash)))) { if(verbose) {sLog << "Node " << hm.lookup(hash).get() << " was not present on DM" << std::endl;}}
         if (!(atDown.deallocate(hash))) { if(verbose) {sLog << "Node " << gUp[v].name << "(0x" << std::hex << hash << " could not be removed" << std::endl;}}
       }  
     }  catch (...) {
@@ -372,9 +368,9 @@ const std::string CarpeDM::needle(CarpeDM::deadbeef, CarpeDM::deadbeef + 4);
     atDown.updateBmps();
     //show("After Removal", "", DOWNLOAD, false );
 
-    gUp.clear(); //create empty upload allocation table
-    atUp.clear();
     atUp.syncToAtBmps(atDown); //use the bmps of the changed download allocation table for upload
+    atUp.unstageAll(); // node nodes will be uploaded, only the bmp
+    
 
     //because gUp Graph is empty, upload will only contain the reduced upload bmps, effectively deleting nodes
     return upload();
@@ -438,12 +434,13 @@ const std::string CarpeDM::needle(CarpeDM::deadbeef, CarpeDM::deadbeef + 4);
   
   //Generate download Bmp addresses. For downloads, this has to be two pass: get bmps first, then use them to get the node locations to read 
   const vAdr CarpeDM::getDownloadBMPAdrs() {
+    AllocTable& at = atDown;
     vAdr ret;
 
      //add all Bmp addresses to return vector
-    for(unsigned int i = 0; i < atDown.getMemories().size(); i++) {
+    for(unsigned int i = 0; i < at.getMemories().size(); i++) {
       //generate addresses of Bmp's address range
-      for (uint32_t adr = atDown.adr2extAdr(i, atDown.getMemories()[i].sharedOffs); adr < atDown.adr2extAdr(i, atDown.getMemories()[i].startOffs); adr += _32b_SIZE_) ret.push_back(adr);
+      for (uint32_t adr = at.adr2extAdr(i, at.getMemories()[i].sharedOffs); adr < at.adr2extAdr(i, at.getMemories()[i].startOffs); adr += _32b_SIZE_) ret.push_back(adr);
     }
     return ret;
   }
@@ -451,17 +448,18 @@ const std::string CarpeDM::needle(CarpeDM::deadbeef, CarpeDM::deadbeef + 4);
     
 
   const vAdr CarpeDM::getDownloadAdrs() {
+    AllocTable& at = atDown;
     vAdr ret;
     //go through Memories
-    for(unsigned int i = 0; i < atDown.getMemories().size(); i++) {
+    for(unsigned int i = 0; i < at.getMemories().size(); i++) {
       //go through a memory's bmp bits, starting at number of nodes the bmp itself needs (bmpSize / memblocksize). Otherwise, we'd needlessly download the bmp again
-      for(unsigned int bitIdx = atDown.getMemories()[i].bmpSize / _MEM_BLOCK_SIZE; bitIdx < atDown.getMemories()[i].bmpBits; bitIdx++) {
+      for(unsigned int bitIdx = at.getMemories()[i].bmpSize / _MEM_BLOCK_SIZE; bitIdx < at.getMemories()[i].bmpBits; bitIdx++) {
         //if the bit says the node is used, we add the node to read addresses
-        //sLog << "Bit Idx " << bitIdx << " valid " << atDown.getMemories()[i].getBmpBit(bitIdx) << " na 0x" << std::hex << atDown.getMemories()[i].sharedOffs + bitIdx * _MEM_BLOCK_SIZE << std::endl;
-        if (atDown.getMemories()[i].getBmpBit(bitIdx)) {
-          uint32_t nodeAdr = atDown.getMemories()[i].sharedOffs + bitIdx * _MEM_BLOCK_SIZE;
+        //sLog << "Bit Idx " << bitIdx << " valid " << at.getMemories()[i].getBmpBit(bitIdx) << " na 0x" << std::hex << at.getMemories()[i].sharedOffs + bitIdx * _MEM_BLOCK_SIZE << std::endl;
+        if (at.getMemories()[i].getBmpBit(bitIdx)) {
+          uint32_t nodeAdr = at.getMemories()[i].sharedOffs + bitIdx * _MEM_BLOCK_SIZE;
            //generate addresses of node's address range
-          for (uint32_t adr = atDown.adr2extAdr(i, nodeAdr); adr < atDown.adr2extAdr(i, nodeAdr + _MEM_BLOCK_SIZE); adr += _32b_SIZE_ ) {ret.push_back(adr);}
+          for (uint32_t adr = at.adr2extAdr(i, nodeAdr); adr < at.adr2extAdr(i, nodeAdr + _MEM_BLOCK_SIZE); adr += _32b_SIZE_ ) {ret.push_back(adr);}
         }
       }      
     }
@@ -472,8 +470,11 @@ const std::string CarpeDM::needle(CarpeDM::deadbeef, CarpeDM::deadbeef + 4);
 
 
   void CarpeDM::parseDownloadData(vBuf downloadData) {
-    atDown.clear();
-    gDown.clear();
+    Graph& g = gDown;
+    AllocTable& at = atDown;
+
+    at.clear();
+    g.clear();
 
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     //create AllocTable and Vertices
@@ -481,13 +482,13 @@ const std::string CarpeDM::needle(CarpeDM::deadbeef, CarpeDM::deadbeef + 4);
 
     uint32_t nodeCnt = 0;
     //go through Memories
-    for(unsigned int i = 0; i < atDown.getMemories().size(); i++) {
+    for(unsigned int i = 0; i < at.getMemories().size(); i++) {
       //go through Bmp
-      for(unsigned int bitIdx = atDown.getMemories()[i].bmpSize / _MEM_BLOCK_SIZE; bitIdx < atDown.getMemories()[i].bmpBits; bitIdx++) {
-        if (atDown.getMemories()[i].getBmpBit(bitIdx)) {
+      for(unsigned int bitIdx = at.getMemories()[i].bmpSize / _MEM_BLOCK_SIZE; bitIdx < at.getMemories()[i].bmpBits; bitIdx++) {
+        if (at.getMemories()[i].getBmpBit(bitIdx)) {
 
           uint32_t    localAdr  = nodeCnt * _MEM_BLOCK_SIZE; nodeCnt++; 
-          uint32_t    adr       = atDown.getMemories()[i].sharedOffs + bitIdx * _MEM_BLOCK_SIZE;
+          uint32_t    adr       = at.getMemories()[i].sharedOffs + bitIdx * _MEM_BLOCK_SIZE;
           uint32_t    hash      = writeBeBytesToLeNumber<uint32_t>((uint8_t*)&downloadData[localAdr + NODE_HASH]);
           //sLog << std::dec << "Offset " << localAdr + NODE_HASH << std::endl;
           std::string name      = hm.lookup(hash) ? hm.lookup(hash).get() : "#" + std::to_string(hash);
@@ -504,7 +505,7 @@ const std::string CarpeDM::needle(CarpeDM::deadbeef, CarpeDM::deadbeef + 4);
 
 
           //Add Vertex
-          vertex_t v        = boost::add_vertex(myVertex(name, std::to_string(cpu), hash, NULL, "", tmp), gDown);
+          vertex_t v        = boost::add_vertex(myVertex(name, std::to_string(cpu), hash, NULL, "", tmp), g);
           //std::cout << "atdown cpu " << (int)cpu << " Adr: 0x" << std::hex << adr <<  " Hash 0x" << hash << std::endl;
           //Add allocTable Entry
           //vBuf test(downloadData.begin() + localAdr, downloadData.begin() + localAdr + _MEM_BLOCK_SIZE);
@@ -512,7 +513,7 @@ const std::string CarpeDM::needle(CarpeDM::deadbeef, CarpeDM::deadbeef + 4);
 
         
 
-          if (!(atDown.insert(cpu, adr, hash, v))) {throw std::runtime_error( std::string("Hash or address collision when adding node ") + name); return;};
+          if (!(at.insert(cpu, adr, hash, v))) {throw std::runtime_error( std::string("Hash or address collision when adding node ") + name); return;};
 
 
           
@@ -522,25 +523,25 @@ const std::string CarpeDM::needle(CarpeDM::deadbeef, CarpeDM::deadbeef + 4);
 
 
 
-          auto* x  = atDown.lookupAdr(cpu, adr);
-          if (x == NULL) {throw std::runtime_error( std::string("Node at (dec) ") + std::to_string(adr) + std::string(", hash (dec) ") + std::to_string(hash) + std::string("not found. This is weird")); return;}
+          auto x  = at.lookupAdr(cpu, adr);
+          if (!(at.isOk(x))) {throw std::runtime_error( std::string("Node at (dec) ") + std::to_string(adr) + std::string(", hash (dec) ") + std::to_string(hash) + std::string("not found. This is weird")); return;}
                
           std::copy(src, src + _MEM_BLOCK_SIZE, (uint8_t*)&(x->b[0]));
         
           //hexDump("buf", (uint8_t*)&(x->b[0]), _MEM_BLOCK_SIZE);
 
           switch(type) {
-            case NODE_TYPE_TMSG         : gDown[v].np =(node_ptr) new  TimingMsg(gDown[v].name, x->hash, x->cpu, x->b, flags); gDown[v].np->deserialise(); break;
-            case NODE_TYPE_CNOOP        : gDown[v].np =(node_ptr) new       Noop(gDown[v].name, x->hash, x->cpu, x->b, flags); gDown[v].np->deserialise(); break;
-            case NODE_TYPE_CFLOW        : gDown[v].np =(node_ptr) new       Flow(gDown[v].name, x->hash, x->cpu, x->b, flags); gDown[v].np->deserialise(); break;
-            case NODE_TYPE_CFLUSH       : gDown[v].np =(node_ptr) new      Flush(gDown[v].name, x->hash, x->cpu, x->b, flags); gDown[v].np->deserialise(); break;
-            case NODE_TYPE_CWAIT        : gDown[v].np =(node_ptr) new       Wait(gDown[v].name, x->hash, x->cpu, x->b, flags); gDown[v].np->deserialise(); break;
-            case NODE_TYPE_BLOCK_FIXED  : gDown[v].np =(node_ptr) new BlockFixed(gDown[v].name, x->hash, x->cpu, x->b, flags); gDown[v].np->deserialise(); break;
-            case NODE_TYPE_BLOCK_ALIGN  : gDown[v].np =(node_ptr) new BlockAlign(gDown[v].name, x->hash, x->cpu, x->b, flags); gDown[v].np->deserialise(); break;
-            case NODE_TYPE_QUEUE        : gDown[v].np =(node_ptr) new   CmdQMeta(gDown[v].name, x->hash, x->cpu, x->b, flags); gDown[v].np->deserialise(); break;
-            case NODE_TYPE_ALTDST       : gDown[v].np =(node_ptr) new   DestList(gDown[v].name, x->hash, x->cpu, x->b, flags); gDown[v].np->deserialise(); break;
-            case NODE_TYPE_QBUF         : gDown[v].np =(node_ptr) new CmdQBuffer(gDown[v].name, x->hash, x->cpu, x->b, flags); break;
-            case NODE_TYPE_UNKNOWN      : std::cerr << "not yet implemented " << gDown[v].type << std::endl; break;
+            case NODE_TYPE_TMSG         : g[v].np =(node_ptr) new  TimingMsg(g[v].name, x->hash, x->cpu, x->b, flags); g[v].np->deserialise(); break;
+            case NODE_TYPE_CNOOP        : g[v].np =(node_ptr) new       Noop(g[v].name, x->hash, x->cpu, x->b, flags); g[v].np->deserialise(); break;
+            case NODE_TYPE_CFLOW        : g[v].np =(node_ptr) new       Flow(g[v].name, x->hash, x->cpu, x->b, flags); g[v].np->deserialise(); break;
+            case NODE_TYPE_CFLUSH       : g[v].np =(node_ptr) new      Flush(g[v].name, x->hash, x->cpu, x->b, flags); g[v].np->deserialise(); break;
+            case NODE_TYPE_CWAIT        : g[v].np =(node_ptr) new       Wait(g[v].name, x->hash, x->cpu, x->b, flags); g[v].np->deserialise(); break;
+            case NODE_TYPE_BLOCK_FIXED  : g[v].np =(node_ptr) new BlockFixed(g[v].name, x->hash, x->cpu, x->b, flags); g[v].np->deserialise(); break;
+            case NODE_TYPE_BLOCK_ALIGN  : g[v].np =(node_ptr) new BlockAlign(g[v].name, x->hash, x->cpu, x->b, flags); g[v].np->deserialise(); break;
+            case NODE_TYPE_QUEUE        : g[v].np =(node_ptr) new   CmdQMeta(g[v].name, x->hash, x->cpu, x->b, flags); g[v].np->deserialise(); break;
+            case NODE_TYPE_ALTDST       : g[v].np =(node_ptr) new   DestList(g[v].name, x->hash, x->cpu, x->b, flags); g[v].np->deserialise(); break;
+            case NODE_TYPE_QBUF         : g[v].np =(node_ptr) new CmdQBuffer(g[v].name, x->hash, x->cpu, x->b, flags); break;
+            case NODE_TYPE_UNKNOWN      : std::cerr << "not yet implemented " << g[v].type << std::endl; break;
             default                     : std::cerr << "Node type 0x" << std::hex << type << " not supported! " << std::endl;
           }
           
@@ -556,19 +557,19 @@ const std::string CarpeDM::needle(CarpeDM::deadbeef, CarpeDM::deadbeef + 4);
     // create edges
 
     //Two-pass for edges. First, iterate all non meta-types to establish block -> dstList parenthood
-    for(auto& it : atDown.getTable().get<Hash>()) {
+    for(auto& it : at.getTable().get<Hash>()) {
       // handled by visitor
-      if (gDown[it.v].np == NULL) {throw std::runtime_error( std::string("Node ") + gDown[it.v].name + std::string("not initialised")); return;
+      if (g[it.v].np == NULL) {throw std::runtime_error( std::string("Node ") + g[it.v].name + std::string("not initialised")); return;
       } else {
-        if  (!(gDown[it.v].np->isMeta())) gDown[it.v].np->accept(VisitorDownloadCrawler(gDown, it.v, atDown));
+        if  (!(g[it.v].np->isMeta())) g[it.v].np->accept(VisitorDownloadCrawler(g, it.v, at));
       }  
     }
     //second, iterate all meta-types
-    for(auto& it : atDown.getTable().get<Hash>()) {
+    for(auto& it : at.getTable().get<Hash>()) {
       // handled by visitor
-      if (gDown[it.v].np == NULL) {throw std::runtime_error( std::string("Node ") + gDown[it.v].name + std::string("not initialised")); return; 
+      if (g[it.v].np == NULL) {throw std::runtime_error( std::string("Node ") + g[it.v].name + std::string("not initialised")); return; 
       } else {
-        if  (gDown[it.v].np->isMeta()) gDown[it.v].np->accept(VisitorDownloadCrawler(gDown, it.v, atDown));
+        if  (g[it.v].np->isMeta()) g[it.v].np->accept(VisitorDownloadCrawler(g, it.v, at));
       }  
     }
 
@@ -608,39 +609,28 @@ const std::string CarpeDM::needle(CarpeDM::deadbeef, CarpeDM::deadbeef + 4);
     Graph& g        = (direction == UPLOAD ? gUp  : gDown);
     AllocTable& at  = (direction == UPLOAD ? atUp : atDown);
 
-    std::ofstream dict(logDictFile.c_str());
+
+
     std::cout << std::endl << title << std::endl;
-    std::cout << std::endl << std::setfill(' ') << std::setw(4) << "Idx" << "   " << std::setfill(' ') << std::setw(4) << "Cpu" << "   " << std::setw(30) << "Name" << "   " << std::setw(10) << "Hash" << "   " << std::setw(10)  <<  "Int. Adr   "  << "   " << std::setw(10) << "Ext. Adr   " << std::endl;
-    //std::cout << std::setfill('-') << std::setw(50) << std::endl;      
-     std::cout << std::endl; 
+    std::cout << std::endl << std::setfill(' ') << std::setw(4) << "Idx" << "   " << std::setfill(' ') << std::setw(4) << "S/R" << "   " << std::setfill(' ') << std::setw(4) << "Cpu" << "   " << std::setw(30) << "Name" << "   " << std::setw(10) << "Hash" << "   " << std::setw(10)  <<  "Int. Adr   "  << "   " << std::setw(10) << "Ext. Adr   " << std::endl;
+    std::cout << std::endl; 
 
 
 
-    
-
-    for (auto& x : at.getTable().get<Vertex>()) {
-
-      try {
-
-        if( !(filterMeta) || (filterMeta & !(g[x.v].np->isMeta())) ) {
-          std::cout << std::setfill(' ') << std::setw(4) << std::dec << x.v
-          << "   "    << std::setfill(' ') << std::setw(4) << std::dec << (int)x.cpu 
-          << "   "    << std::setfill(' ') << std::setw(40) << std::left << g[x.v].name 
-          << "   0x"  << std::hex << std::setfill('0') << std::setw(8) << x.hash
-          << "   0x"  << std::hex << std::setfill('0') << std::setw(8) << at.adr2intAdr(x.cpu, x.adr) 
-          << "   0x"  << std::hex << std::setfill('0') << std::setw(8) << at.adr2extAdr(x.cpu, x.adr) << std::endl;
-    
-
-          if (dict.good()) {
-            dict << std::hex << "\"0x" << x.hash << "\" : \"" << g[x.v].name << "\"" << std::endl;
-            dict << std::hex << "\"0x" << at.adr2intAdr(x.cpu, x.adr) << "\" : \"pi_" << g[x.v].name << "\"" << std::endl;
-            dict << std::hex << "\"0x" << at.adr2extAdr(x.cpu, x.adr) << "\" : \"pe_" << g[x.v].name << "\"" << std::endl;
-          } 
-        }
-      } catch(...) {
-        throw std::runtime_error( std::string("Node ") + g[x.v].name + std::string(" not in AllocTable")); return; 
+    BOOST_FOREACH( vertex_t v, vertices(g) ) {
+      auto x = at.lookupVertex(v);
+      
+      if( !(filterMeta) || (filterMeta & !(g[v].np->isMeta())) ) {
+        std::cout   << std::setfill(' ') << std::setw(4) << std::dec << (at.isOk(x) ? (int)x->cpu : " -  "  ) 
+        << "   "    << std::setfill(' ') << std::setw(4) << std::dec << (int)(at.isOk(x) && x->staged)  
+        << "   "    << std::setfill(' ') << std::setw(2) << std::dec << (int)(!(at.isOk(x))) 
+        << "   "    << std::setfill(' ') << std::setw(40) << std::left << g[v].name 
+        << "   0x"  << std::hex << std::setfill('0') << std::setw(8) << (at.isOk(x) ? x->hash  : " -  " )
+        << "   0x"  << std::hex << std::setfill('0') << std::setw(8) << (at.isOk(x) ? at.adr2intAdr(x->cpu, x->adr)  : " -  " ) 
+        << "   0x"  << std::hex << std::setfill('0') << std::setw(8) << (at.isOk(x) ? at.adr2extAdr(x->cpu, x->adr)  : " -  " )  << std::endl;
       }
-    }
+    }  
+
     std::cout << std::endl;  
   }  
 

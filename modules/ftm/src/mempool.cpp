@@ -52,7 +52,7 @@ bool MemPool::acquireChunk(uint32_t &adr) {
 }
 
 
-bool MemPool::freeChunk(uint32_t &adr) {
+bool MemPool::freeChunk(uint32_t adr) {
   //bool ret = true;
   uint32_t a = adr - startOffs;
   //if out of range or unaligned, return false

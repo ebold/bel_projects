@@ -2,7 +2,7 @@
 
   
 
-  bool AllocTable::insert(uint8_t cpu, uint32_t adr, uint32_t hash, vertex_t v) {
+  bool AllocTable::insert(uint8_t cpu, uint32_t adr, uint32_t hash, vertex_t v, bool staged) {
     /*
     std::cout << "Problem: " << std::endl; 
     if (lookupAdr(cpu, adr) != NULL) std::cout << (int)cpu << " Adr 0x" << std::hex << adr << " exists already" << std::endl;
@@ -10,7 +10,7 @@
     if (lookupVertex(v) != NULL) std::cout << "V 0x" << std::dec << v << " exists already" << std::endl;
     */
     vPool[cpu].occupyChunk(adr);
-    auto x = a.insert({cpu, adr, hash, v});
+    auto x = a.insert({cpu, adr, hash, v, staged});
 
     return x.second;
   }
@@ -39,27 +39,24 @@
 
   }
 
-  AllocMeta* AllocTable::lookupVertex(vertex_t v) const  {
+  amI AllocTable::lookupVertex(vertex_t v) const  {
     auto it = a.get<Vertex>().find(v);
-    if (it != a.get<Vertex>().end()) return (AllocMeta*)&(*it);
-    else return NULL;
+    return a.iterator_to( *it );
   }
 
-  AllocMeta* AllocTable::lookupHash(uint32_t hash) const  {
+  amI AllocTable::lookupHash(uint32_t hash) const  {
     auto it = a.get<Hash>().find(hash);
-    if (it != a.get<Hash>().end()) return (AllocMeta*)&(*it);
-    else return NULL;
+    return a.iterator_to( *it );
   }
 
-  AllocMeta* AllocTable::lookupAdr(uint8_t cpu, uint32_t adr) const {
+  amI AllocTable::lookupAdr(uint8_t cpu, uint32_t adr) const {
     auto it = a.get<CpuAdr>().find(boost::make_tuple( cpu, adr ));
-    if (it != a.get<CpuAdr>().end()) return (AllocMeta*)&(*it);
-    else return NULL;
+    return a.iterator_to( *it );
     
   }
 
   //Allocation functions
-  int AllocTable::allocate(uint8_t cpu, uint32_t hash, vertex_t v) {
+  int AllocTable::allocate(uint8_t cpu, uint32_t hash, vertex_t v, bool staged) {
     uint32_t chunkAdr;
     //std::cout << "Cpu " << (int)cpu << " mempools " << vPool.size() << std::endl;
     if (cpu >= vPool.size()) {
@@ -67,16 +64,16 @@
       return ALLOC_NO_SPACE;}
 
     if (!(vPool[cpu].acquireChunk(chunkAdr))) return ALLOC_NO_SPACE;
-    if (!(insert(cpu, chunkAdr, hash, v)))    return ALLOC_ENTRY_EXISTS;
+    if (!(insert(cpu, chunkAdr, hash, v, staged)))    return ALLOC_ENTRY_EXISTS;
 
     return ALLOC_OK;
   }
 
   bool AllocTable::deallocate(uint32_t hash) {
 
-    auto* x = lookupHash(hash);
+    auto x = lookupHash(hash);
     
-    if (x == NULL) {
+    if (x == a.end()) {
       //std::cout << "NULL" << std::endl;
       return false;}
     if (vPool.size() <= x->cpu) {
@@ -133,4 +130,5 @@
   AllocTable::AllocTable(AllocTable const &src) {
     this->a = src.a;
     this->syncToAtBmps(src);
+    this->updatePools();
   }  

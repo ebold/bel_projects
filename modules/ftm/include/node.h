@@ -16,6 +16,7 @@ class Node {
   const std::string&  name;
   const uint32_t&     hash;
   const uint8_t&      cpu;
+  
 
 
 protected:    

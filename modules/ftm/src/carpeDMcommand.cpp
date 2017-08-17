@@ -70,8 +70,8 @@
 
      if (adr == LM32_NULL_PTR) return "Idle";
 
-     auto* x = atDown.lookupAdr(cpuIdx, atDown.intAdr2adr(cpuIdx, adr));
-     if (x != NULL) return gDown[x->v].name;
+     auto x = atDown.lookupAdr(cpuIdx, atDown.intAdr2adr(cpuIdx, adr));
+     if (atDown.isOk(x)) return gDown[x->v].name;
      else           return "Unknown";
   }
 
@@ -84,8 +84,8 @@
 
     if (adr == LM32_NULL_PTR) return "Idle";
 
-    auto* x = atDown.lookupAdr(cpuIdx, atDown.intAdr2adr(cpuIdx, adr));
-    if (x != NULL) return gDown[x->v].name;
+    auto x = atDown.lookupAdr(cpuIdx, atDown.intAdr2adr(cpuIdx, adr));
+    if (atDown.isOk(x)) return gDown[x->v].name;
     else           return "Unknown";  
   }
 
@@ -252,7 +252,7 @@ void CarpeDM::dumpNode(uint8_t cpuIdx, const std::string& name) {
   
   Graph& g = gUp;
   try {
-    auto* n = atDown.lookupHash(hm.lookup(boost::get_property(g, boost::graph_name) + name).get());  
+    auto n = atDown.lookupHash(hm.lookup(boost::get_property(g, boost::graph_name) + name).get());  
     hexDump(gDown[n->v].name.c_str(), n->b, _MEM_BLOCK_SIZE); 
   } catch (...) {throw;}
 }
@@ -284,9 +284,9 @@ uint64_t CarpeDM::getThrPrepTime(uint8_t cpuIdx, uint8_t thrIdx) {
     vAdr ret;  
 
     //find the address corresponding to given name
-    auto* x = atDown.lookupHash(hash);
+    auto x = atDown.lookupHash(hash);
 
-    if (x == NULL) {throw std::runtime_error( "Could not find target block in download address table"); return ret;}
+    if (!(at.isOk(x))) {throw std::runtime_error( "Could not find target block in download address table"); return ret;}
 
 
     //Check if requested queue priority level exists
@@ -334,9 +334,9 @@ uint64_t CarpeDM::getThrPrepTime(uint8_t cpuIdx, uint8_t thrIdx) {
     uint8_t  eWrIdx;
 
     //find the address corresponding to given name
-    auto* x = atDown.lookupHash(hash);
+    auto x = atDown.lookupHash(hash);
 
-    if (x == NULL) {throw std::runtime_error( "Could not find target block in download address table"); return 0;}
+    if (!(at.isOk(x))) {throw std::runtime_error( "Could not find target block in download address table"); return 0;}
         //std::cout << "indices: 0x" << std::hex << writeBeBytesToLeNumber<uint32_t>((uint8_t*)&x->b[BLOCK_CMDQ_WR_IDXS]) << std::endl;
     //get incremented Write index of requested prio
     eWrIdx = ( writeBeBytesToLeNumber<uint32_t>((uint8_t*)&x->b[BLOCK_CMDQ_WR_IDXS]) >> (prio * 8)) & Q_IDX_MAX_OVF_MSK;
