@@ -61,4 +61,18 @@ bool MemPool::freeChunk(uint32_t adr) {
   if (pool.count(adr) > 0)  {return false;}
   pool.insert(adr);
   return true;
-}        
+}      
+
+MemPool& MemPool::operator=(const MemPool& other) {
+  if (this            != &other &&  // self-assignment check expected
+      this->startOffs == other.startOffs && // address range check
+      this->endOffs   == other.endOffs) 
+  {   
+    pool.clear();
+    pool = other.pool;
+    bmp.clear();
+    bmp = other.bmp;  
+  }  
+  return *this;
+}
+

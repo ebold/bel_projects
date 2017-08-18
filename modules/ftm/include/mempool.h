@@ -56,6 +56,7 @@ public:
           { init();  }
           
   ~MemPool() { };
+  MemPool& operator=(const MemPool& other);
 
   void initBmp();
   void initPool();

@@ -178,7 +178,7 @@ const std::string CarpeDM::needle(CarpeDM::deadbeef, CarpeDM::deadbeef + 4);
       //FIXME Careful! CPU indices in the (intermediary) .dot do not necessarily match the vector indices. Use the fucking cpuIdx map to translate!
 
 
-      auto it = atUp.lookupHash(hash); //if we already have an entry, keep all, but update vertex index
+      amI it = atUp.lookupHash(hash); //if we already have an entry, keep all, but update vertex index
       if (atUp.isOk(it)) {
         existingNames.push_back(name);
         atUp.setV(it, v); //vertex index must be correct for OUR graph, don't care about download side
@@ -189,10 +189,12 @@ const std::string CarpeDM::needle(CarpeDM::deadbeef, CarpeDM::deadbeef + 4);
         if (allocState == ALLOC_NO_SPACE)         {throw std::runtime_error("Not enough space in CPU " + std::to_string(cpu) + " memory pool"); return; }
         if (allocState == ALLOC_ENTRY_EXISTS)     {throw std::runtime_error("Node '" + name + "' would be duplicate in graph."); return; }
         // getting here means alloc went okay
+        it = atUp.lookupHash(hash);
       }  
       
-      //TODO find something nicer here  
-      auto x = ((AllocMeta*)&(*it)); //nasty, but othwise the buffer array at x->b will become const ...
+      //TODO Find something better than stupic cast to ptr
+      //Ugly as hell. But otherwise the bloody iterator will only allow access to MY alloc buffers (not their pointers!) as const!
+      auto* x = (AllocMeta*)&(*it);
 
       cmp = gUp[v].type;
       
@@ -523,24 +525,26 @@ const std::string CarpeDM::needle(CarpeDM::deadbeef, CarpeDM::deadbeef + 4);
 
 
 
-          auto x  = at.lookupAdr(cpu, adr);
-          if (!(at.isOk(x))) {throw std::runtime_error( std::string("Node at (dec) ") + std::to_string(adr) + std::string(", hash (dec) ") + std::to_string(hash) + std::string("not found. This is weird")); return;}
-               
+          auto it  = at.lookupAdr(cpu, adr);
+          if (!(at.isOk(it))) {throw std::runtime_error( std::string("Node at (dec) ") + std::to_string(adr) + std::string(", hash (dec) ") + std::to_string(hash) + std::string("not found. This is weird")); return;}
+          
+          auto* x = (AllocMeta*)&(*it);
+
           std::copy(src, src + _MEM_BLOCK_SIZE, (uint8_t*)&(x->b[0]));
         
           //hexDump("buf", (uint8_t*)&(x->b[0]), _MEM_BLOCK_SIZE);
 
           switch(type) {
-            case NODE_TYPE_TMSG         : g[v].np =(node_ptr) new  TimingMsg(g[v].name, x->hash, x->cpu, x->b, flags); g[v].np->deserialise(); break;
-            case NODE_TYPE_CNOOP        : g[v].np =(node_ptr) new       Noop(g[v].name, x->hash, x->cpu, x->b, flags); g[v].np->deserialise(); break;
-            case NODE_TYPE_CFLOW        : g[v].np =(node_ptr) new       Flow(g[v].name, x->hash, x->cpu, x->b, flags); g[v].np->deserialise(); break;
-            case NODE_TYPE_CFLUSH       : g[v].np =(node_ptr) new      Flush(g[v].name, x->hash, x->cpu, x->b, flags); g[v].np->deserialise(); break;
-            case NODE_TYPE_CWAIT        : g[v].np =(node_ptr) new       Wait(g[v].name, x->hash, x->cpu, x->b, flags); g[v].np->deserialise(); break;
-            case NODE_TYPE_BLOCK_FIXED  : g[v].np =(node_ptr) new BlockFixed(g[v].name, x->hash, x->cpu, x->b, flags); g[v].np->deserialise(); break;
-            case NODE_TYPE_BLOCK_ALIGN  : g[v].np =(node_ptr) new BlockAlign(g[v].name, x->hash, x->cpu, x->b, flags); g[v].np->deserialise(); break;
-            case NODE_TYPE_QUEUE        : g[v].np =(node_ptr) new   CmdQMeta(g[v].name, x->hash, x->cpu, x->b, flags); g[v].np->deserialise(); break;
-            case NODE_TYPE_ALTDST       : g[v].np =(node_ptr) new   DestList(g[v].name, x->hash, x->cpu, x->b, flags); g[v].np->deserialise(); break;
-            case NODE_TYPE_QBUF         : g[v].np =(node_ptr) new CmdQBuffer(g[v].name, x->hash, x->cpu, x->b, flags); break;
+            case NODE_TYPE_TMSG         : g[v].np = (node_ptr) new  TimingMsg(g[v].name, x->hash, x->cpu, x->b, flags); g[v].np->deserialise(); break;
+            case NODE_TYPE_CNOOP        : g[v].np = (node_ptr) new       Noop(g[v].name, x->hash, x->cpu, x->b, flags); g[v].np->deserialise(); break;
+            case NODE_TYPE_CFLOW        : g[v].np = (node_ptr) new       Flow(g[v].name, x->hash, x->cpu, x->b, flags); g[v].np->deserialise(); break;
+            case NODE_TYPE_CFLUSH       : g[v].np = (node_ptr) new      Flush(g[v].name, x->hash, x->cpu, x->b, flags); g[v].np->deserialise(); break;
+            case NODE_TYPE_CWAIT        : g[v].np = (node_ptr) new       Wait(g[v].name, x->hash, x->cpu, x->b, flags); g[v].np->deserialise(); break;
+            case NODE_TYPE_BLOCK_FIXED  : g[v].np = (node_ptr) new BlockFixed(g[v].name, x->hash, x->cpu, x->b, flags); g[v].np->deserialise(); break;
+            case NODE_TYPE_BLOCK_ALIGN  : g[v].np = (node_ptr) new BlockAlign(g[v].name, x->hash, x->cpu, x->b, flags); g[v].np->deserialise(); break;
+            case NODE_TYPE_QUEUE        : g[v].np = (node_ptr) new   CmdQMeta(g[v].name, x->hash, x->cpu, x->b, flags); g[v].np->deserialise(); break;
+            case NODE_TYPE_ALTDST       : g[v].np = (node_ptr) new   DestList(g[v].name, x->hash, x->cpu, x->b, flags); g[v].np->deserialise(); break;
+            case NODE_TYPE_QBUF         : g[v].np = (node_ptr) new CmdQBuffer(g[v].name, x->hash, x->cpu, x->b, flags); break;
             case NODE_TYPE_UNKNOWN      : std::cerr << "not yet implemented " << g[v].type << std::endl; break;
             default                     : std::cerr << "Node type 0x" << std::hex << type << " not supported! " << std::endl;
           }
@@ -621,13 +625,13 @@ const std::string CarpeDM::needle(CarpeDM::deadbeef, CarpeDM::deadbeef + 4);
       auto x = at.lookupVertex(v);
       
       if( !(filterMeta) || (filterMeta & !(g[v].np->isMeta())) ) {
-        std::cout   << std::setfill(' ') << std::setw(4) << std::dec << (at.isOk(x) ? (int)x->cpu : " -  "  ) 
+        std::cout   << std::setfill(' ') << std::setw(4) << std::dec << (at.isOk(x) ? (int)x->cpu : -1 ) 
         << "   "    << std::setfill(' ') << std::setw(4) << std::dec << (int)(at.isOk(x) && x->staged)  
         << "   "    << std::setfill(' ') << std::setw(2) << std::dec << (int)(!(at.isOk(x))) 
         << "   "    << std::setfill(' ') << std::setw(40) << std::left << g[v].name 
-        << "   0x"  << std::hex << std::setfill('0') << std::setw(8) << (at.isOk(x) ? x->hash  : " -  " )
-        << "   0x"  << std::hex << std::setfill('0') << std::setw(8) << (at.isOk(x) ? at.adr2intAdr(x->cpu, x->adr)  : " -  " ) 
-        << "   0x"  << std::hex << std::setfill('0') << std::setw(8) << (at.isOk(x) ? at.adr2extAdr(x->cpu, x->adr)  : " -  " )  << std::endl;
+        << "   0x"  << std::hex << std::setfill('0') << std::setw(8) << (at.isOk(x) ? x->hash  : 0 )
+        << "   0x"  << std::hex << std::setfill('0') << std::setw(8) << (at.isOk(x) ? at.adr2intAdr(x->cpu, x->adr)  : 0 ) 
+        << "   0x"  << std::hex << std::setfill('0') << std::setw(8) << (at.isOk(x) ? at.adr2extAdr(x->cpu, x->adr)  : 0 )  << std::endl;
       }
     }  
 

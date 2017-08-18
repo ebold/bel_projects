@@ -175,7 +175,7 @@
     boost::optional<std::string> name; 
     
     //FIXME the safeguards for the maps are total crap. Include some decent checks, not everything is worth an exception!!!
-    auto* block = atDown.lookupHash(hm.lookup(blockName).get());
+    auto block = atDown.lookupHash(hm.lookup(blockName).get());
     sLog << std::endl;
 
     sLog << "     IlHiLo" << std::endl;
@@ -188,8 +188,8 @@
     //Get Buffer List of requested priority
     for (out_cur = out_begin; out_cur != out_end; ++out_cur) { if (g[target(*out_cur,g)].np->isMeta() && g[*out_cur].type == sQM[cmdPrio]) {found = true; break;} }
     if (!(found)) {throw std::runtime_error("Block " + blockName + " does not have a " + sPrio[cmdPrio] + " queue"); return;}            
-    auto* bufList = atDown.lookupVertex(target(*out_cur,g));    
-    if (bufList == NULL) {return;}
+    auto bufList = atDown.lookupVertex(target(*out_cur,g));    
+    if (!(atDown.isOk(bufList))) {return;}
     
 
     boost::tie(out_begin, out_end) = out_edges(bufList->v,g);
@@ -233,8 +233,8 @@
           case ACT_TYPE_NOOP  : break;
           case ACT_TYPE_FLOW  : sLog << "Destination: ";
                                 try { 
-                                  auto* y = atDown.lookupAdr(cpuIdx, atDown.intAdr2adr(cpuIdx, dest));
-                                  if(y != NULL) name = hm.lookup(y->hash);
+                                  auto y = atDown.lookupAdr(cpuIdx, atDown.intAdr2adr(cpuIdx, dest));
+                                  if(atDown.isOk(y)) name = hm.lookup(y->hash);
                                   else name = "INVALID"; 
                                 } catch (...) {throw; name = "INVALID";}
                                 sLog << name.get()  << std::endl; break;
@@ -250,11 +250,13 @@
 
 void CarpeDM::dumpNode(uint8_t cpuIdx, const std::string& name) {
   
-  Graph& g = gUp;
-  try {
-    auto n = atDown.lookupHash(hm.lookup(boost::get_property(g, boost::graph_name) + name).get());  
-    hexDump(gDown[n->v].name.c_str(), n->b, _MEM_BLOCK_SIZE); 
-  } catch (...) {throw;}
+  Graph& g = gDown;
+ 
+    auto it = atDown.lookupHash(hm.lookup(name).get());
+    if (atDown.isOk(it)) {
+      auto* x = (AllocMeta*)&(*it);  
+      hexDump(g[x->v].name.c_str(), x->b, _MEM_BLOCK_SIZE); 
+    }
 }
 
 
@@ -284,10 +286,10 @@ uint64_t CarpeDM::getThrPrepTime(uint8_t cpuIdx, uint8_t thrIdx) {
     vAdr ret;  
 
     //find the address corresponding to given name
-    auto x = atDown.lookupHash(hash);
+    auto it = atDown.lookupHash(hash);
 
-    if (!(at.isOk(x))) {throw std::runtime_error( "Could not find target block in download address table"); return ret;}
-
+    if (!(atDown.isOk(it))) {throw std::runtime_error( "Could not find target block in download address table"); return ret;}
+    auto* x = (AllocMeta*)&(*it);
 
     //Check if requested queue priority level exists
     uint32_t blAdr = writeBeBytesToLeNumber<uint32_t>((uint8_t*)&x->b[BLOCK_CMDQ_PTRS + prio * _PTR_SIZE_]); 
@@ -304,9 +306,9 @@ uint64_t CarpeDM::getThrPrepTime(uint8_t cpuIdx, uint8_t thrIdx) {
     //std::cout << "wrIdx " << (int)wrIdx << " rdIdx " << (int)rdIdx << " ewrIdx " << (int)eWrIdx << " rdIdx " << (int)rdIdx << " eRdIdx " << eRdIdx << std::endl;
     if ((wrIdx == rdIdx) && (eWrIdx != eRdIdx)) {throw std::runtime_error( "Block queue is full, can't write. "); return ret; }
     //lookup Buffer List                                                        
-    auto* pmBl = atDown.lookupAdr(x->cpu, atDown.intAdr2adr(x->cpu, blAdr));
-
-    if (pmBl == NULL) {throw std::runtime_error( "Could not find target queue in download address table"); return ret;}
+    it = atDown.lookupAdr(x->cpu, atDown.intAdr2adr(x->cpu, blAdr));
+    if (!(atDown.isOk(it))) {throw std::runtime_error( "Could not find target queue in download address table"); return ret;}
+    auto* pmBl = (AllocMeta*)&(*it);
 
     //calculate write offset                                                     
 
@@ -334,9 +336,10 @@ uint64_t CarpeDM::getThrPrepTime(uint8_t cpuIdx, uint8_t thrIdx) {
     uint8_t  eWrIdx;
 
     //find the address corresponding to given name
-    auto x = atDown.lookupHash(hash);
+    auto it = atDown.lookupHash(hash);
 
-    if (!(at.isOk(x))) {throw std::runtime_error( "Could not find target block in download address table"); return 0;}
+    if (!(atDown.isOk(it))) {throw std::runtime_error( "Could not find target block in download address table"); return 0;}
+    auto* x = (AllocMeta*)&(*it);
         //std::cout << "indices: 0x" << std::hex << writeBeBytesToLeNumber<uint32_t>((uint8_t*)&x->b[BLOCK_CMDQ_WR_IDXS]) << std::endl;
     //get incremented Write index of requested prio
     eWrIdx = ( writeBeBytesToLeNumber<uint32_t>((uint8_t*)&x->b[BLOCK_CMDQ_WR_IDXS]) >> (prio * 8)) & Q_IDX_MAX_OVF_MSK;
