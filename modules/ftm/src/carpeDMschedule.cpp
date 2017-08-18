@@ -166,9 +166,35 @@ const std::string CarpeDM::needle(CarpeDM::deadbeef, CarpeDM::deadbeef + 4);
     generateBlockMeta();
     
 
+    //preserve allocation of downloaded nodes
+    BOOST_FOREACH( vertex_t v, vertices(gUp) ) {
+      //std::string name = boost::get_property(gUp, boost::graph_name) + "." + gUp[v].name;
+      std::string name = gUp[v].name;
+      if (!(hm.lookup(name)))                   {throw std::runtime_error("Node '" + name + "' was unknown to the hashmap"); return;}
+      hash = hm.lookup(name).get();
+      
+      //FIXME Careful! CPU indices in the (intermediary) .dot do not necessarily match the vector indices. Use the fucking cpuIdx map to translate!
 
 
-    //allocate/insert and init all nodes
+      amI it = atDown.lookupHash(hash); //if we already have a download entry, keep allocation, but update vertex index
+      if (atDown.isOk(it)) {
+
+        existingNames.push_back(name);
+        atUp.insert(it->cpu, it->adr, hash, v, false);
+
+        it = atUp.lookupHash(hash);
+        /*
+        atUp.clrStaged(it);
+        atUp.setV(it, v); //vertex index must be correct for OUR graph, don't care about download side
+        */
+
+        /////////////////////////////////////////////////////////////////////////////////////
+      }
+    }  
+
+    atUp.debug();
+
+    //allocate and init all new nodes
     BOOST_FOREACH( vertex_t v, vertices(gUp) ) {
       //std::string name = boost::get_property(gUp, boost::graph_name) + "." + gUp[v].name;
       std::string name = gUp[v].name;
@@ -178,13 +204,10 @@ const std::string CarpeDM::needle(CarpeDM::deadbeef, CarpeDM::deadbeef + 4);
       //FIXME Careful! CPU indices in the (intermediary) .dot do not necessarily match the vector indices. Use the fucking cpuIdx map to translate!
 
 
-      amI it = atUp.lookupHash(hash); //if we already have an entry, keep all, but update vertex index
-      if (atUp.isOk(it)) {
-        existingNames.push_back(name);
-        atUp.setV(it, v); //vertex index must be correct for OUR graph, don't care about download side
-        atUp.clrStaged(it);
-      } else {
+      amI it = atUp.lookupHash(hash); //if we already have a download entry, keep allocation, but update vertex index
+      if (!(atUp.isOk(it))) {
         //  
+        sLog << "Adding " << name << std::endl;
         allocState = atUp.allocate(cpu, hash, v, true);
         if (allocState == ALLOC_NO_SPACE)         {throw std::runtime_error("Not enough space in CPU " + std::to_string(cpu) + " memory pool"); return; }
         if (allocState == ALLOC_ENTRY_EXISTS)     {throw std::runtime_error("Node '" + name + "' would be duplicate in graph."); return; }
@@ -196,38 +219,44 @@ const std::string CarpeDM::needle(CarpeDM::deadbeef, CarpeDM::deadbeef + 4);
       //Ugly as hell. But otherwise the bloody iterator will only allow access to MY alloc buffers (not their pointers!) as const!
       auto* x = (AllocMeta*)&(*it);
 
-      cmp = gUp[v].type;
+      if(gUp[v].np == NULL) {
+
+        cmp = gUp[v].type;
       
-      if      (cmp == "tmsg")     {
-        uint64_t id;
-        // if ID field was not given, try to construct from subfields
-        if ( gUp[v].id.find("0xD15EA5EDDEADBEEF") != std::string::npos) { 
-          id =  ((s2u<uint64_t>(gUp[v].id_fid)    & ID_FID_MSK)   << ID_FID_POS)   |
-                ((s2u<uint64_t>(gUp[v].id_gid)    & ID_GID_MSK)   << ID_GID_POS)   |
-                ((s2u<uint64_t>(gUp[v].id_evtno)  & ID_EVTNO_MSK) << ID_EVTNO_POS) |
-                ((s2u<uint64_t>(gUp[v].id_sid)    & ID_SID_MSK)   << ID_SID_POS)   |
-                ((s2u<uint64_t>(gUp[v].id_bpid)   & ID_BPID_MSK)  << ID_BPID_POS)  |
-                ((s2u<uint64_t>(gUp[v].id_res)    & ID_RES_MSK)   << ID_RES_POS);
-        } else { id = s2u<uint64_t>(gUp[v].id); }
-        gUp[v].np = (node_ptr) new       TimingMsg(gUp[v].name, x->hash, x->cpu, x->b, 0,  s2u<uint64_t>(gUp[v].tOffs), id, s2u<uint64_t>(gUp[v].par), s2u<uint32_t>(gUp[v].tef), s2u<uint32_t>(gUp[v].res)); 
-      }
-      else if (cmp == "noop")     {gUp[v].np = (node_ptr) new            Noop(gUp[v].name, x->hash, x->cpu, x->b, 0,  s2u<uint64_t>(gUp[v].tOffs), s2u<uint64_t>(gUp[v].tValid), s2u<uint8_t>(gUp[v].prio), s2u<uint8_t>(gUp[v].qty)); }
-      else if (cmp == "flow")     {gUp[v].np = (node_ptr) new            Flow(gUp[v].name, x->hash, x->cpu, x->b, 0,  s2u<uint64_t>(gUp[v].tOffs), s2u<uint64_t>(gUp[v].tValid), s2u<uint8_t>(gUp[v].prio), s2u<uint8_t>(gUp[v].qty)); }
-      else if (cmp == "flush")    {gUp[v].np = (node_ptr) new           Flush(gUp[v].name, x->hash, x->cpu, x->b, 0,  s2u<uint64_t>(gUp[v].tOffs), s2u<uint64_t>(gUp[v].tValid), s2u<uint8_t>(gUp[v].prio),
-                                                                              s2u<bool>(gUp[v].qIl), s2u<bool>(gUp[v].qHi), s2u<bool>(gUp[v].qLo), s2u<uint8_t>(gUp[v].frmIl), s2u<uint8_t>(gUp[v].toIl), s2u<uint8_t>(gUp[v].frmHi),
-                                                                              s2u<uint8_t>(gUp[v].toHi), s2u<uint8_t>(gUp[v].frmLo), s2u<uint8_t>(gUp[v].toLo) ); }
-      else if (cmp == "wait")     {gUp[v].np = (node_ptr) new            Wait(gUp[v].name, x->hash, x->cpu, x->b, 0,  s2u<uint64_t>(gUp[v].tOffs), s2u<uint64_t>(gUp[v].tValid), s2u<uint8_t>(gUp[v].prio), s2u<uint64_t>(gUp[v].tWait)); }
-      else if (cmp == "block")    {gUp[v].np = (node_ptr) new      BlockFixed(gUp[v].name, x->hash, x->cpu, x->b, 0, s2u<uint64_t>(gUp[v].tPeriod) ); }
-      else if (cmp == "blockfixed")    {gUp[v].np = (node_ptr) new BlockFixed(gUp[v].name, x->hash, x->cpu, x->b, 0, s2u<uint64_t>(gUp[v].tPeriod) ); }
-      else if (cmp == "blockalign")    {gUp[v].np = (node_ptr) new BlockAlign(gUp[v].name, x->hash, x->cpu, x->b, 0, s2u<uint64_t>(gUp[v].tPeriod) ); }
-      else if (cmp == "qinfo")    {gUp[v].np = (node_ptr) new        CmdQMeta(gUp[v].name, x->hash, x->cpu, x->b, 0);}
-      else if (cmp == "listdst")  {gUp[v].np = (node_ptr) new        DestList(gUp[v].name, x->hash, x->cpu, x->b, 0);}
-      else if (cmp == "qbuf")     {gUp[v].np = (node_ptr) new      CmdQBuffer(gUp[v].name, x->hash, x->cpu, x->b, 0);}
-      else if (cmp == "meta")     {throw std::runtime_error("Pure meta type not yet implemented"); return;}
-      else                        {throw std::runtime_error("Node <" + gUp[v].name + ">'s type <" + cmp + "> is not supported!\nMost likely you forgot to set the type attribute or accidentally created the node by a typo in an edge definition."); return;}
-    }  
+        if      (cmp == "tmsg")     {
+          uint64_t id;
+          // if ID field was not given, try to construct from subfields
+          if ( gUp[v].id.find("0xD15EA5EDDEADBEEF") != std::string::npos) { 
+            id =  ((s2u<uint64_t>(gUp[v].id_fid)    & ID_FID_MSK)   << ID_FID_POS)   |
+                  ((s2u<uint64_t>(gUp[v].id_gid)    & ID_GID_MSK)   << ID_GID_POS)   |
+                  ((s2u<uint64_t>(gUp[v].id_evtno)  & ID_EVTNO_MSK) << ID_EVTNO_POS) |
+                  ((s2u<uint64_t>(gUp[v].id_sid)    & ID_SID_MSK)   << ID_SID_POS)   |
+                  ((s2u<uint64_t>(gUp[v].id_bpid)   & ID_BPID_MSK)  << ID_BPID_POS)  |
+                  ((s2u<uint64_t>(gUp[v].id_res)    & ID_RES_MSK)   << ID_RES_POS);
+          } else { id = s2u<uint64_t>(gUp[v].id); }
+          gUp[v].np = (node_ptr) new       TimingMsg(gUp[v].name, x->hash, x->cpu, x->b, 0,  s2u<uint64_t>(gUp[v].tOffs), id, s2u<uint64_t>(gUp[v].par), s2u<uint32_t>(gUp[v].tef), s2u<uint32_t>(gUp[v].res)); 
+        }
+        else if (cmp == "noop")     {gUp[v].np = (node_ptr) new            Noop(gUp[v].name, x->hash, x->cpu, x->b, 0,  s2u<uint64_t>(gUp[v].tOffs), s2u<uint64_t>(gUp[v].tValid), s2u<uint8_t>(gUp[v].prio), s2u<uint8_t>(gUp[v].qty)); }
+        else if (cmp == "flow")     {gUp[v].np = (node_ptr) new            Flow(gUp[v].name, x->hash, x->cpu, x->b, 0,  s2u<uint64_t>(gUp[v].tOffs), s2u<uint64_t>(gUp[v].tValid), s2u<uint8_t>(gUp[v].prio), s2u<uint8_t>(gUp[v].qty)); }
+        else if (cmp == "flush")    {gUp[v].np = (node_ptr) new           Flush(gUp[v].name, x->hash, x->cpu, x->b, 0,  s2u<uint64_t>(gUp[v].tOffs), s2u<uint64_t>(gUp[v].tValid), s2u<uint8_t>(gUp[v].prio),
+                                                                                s2u<bool>(gUp[v].qIl), s2u<bool>(gUp[v].qHi), s2u<bool>(gUp[v].qLo), s2u<uint8_t>(gUp[v].frmIl), s2u<uint8_t>(gUp[v].toIl), s2u<uint8_t>(gUp[v].frmHi),
+                                                                                s2u<uint8_t>(gUp[v].toHi), s2u<uint8_t>(gUp[v].frmLo), s2u<uint8_t>(gUp[v].toLo) ); }
+        else if (cmp == "wait")     {gUp[v].np = (node_ptr) new            Wait(gUp[v].name, x->hash, x->cpu, x->b, 0,  s2u<uint64_t>(gUp[v].tOffs), s2u<uint64_t>(gUp[v].tValid), s2u<uint8_t>(gUp[v].prio), s2u<uint64_t>(gUp[v].tWait)); }
+        else if (cmp == "block")    {gUp[v].np = (node_ptr) new      BlockFixed(gUp[v].name, x->hash, x->cpu, x->b, 0, s2u<uint64_t>(gUp[v].tPeriod) ); }
+        else if (cmp == "blockfixed")    {gUp[v].np = (node_ptr) new BlockFixed(gUp[v].name, x->hash, x->cpu, x->b, 0, s2u<uint64_t>(gUp[v].tPeriod) ); }
+        else if (cmp == "blockalign")    {gUp[v].np = (node_ptr) new BlockAlign(gUp[v].name, x->hash, x->cpu, x->b, 0, s2u<uint64_t>(gUp[v].tPeriod) ); }
+        else if (cmp == "qinfo")    {gUp[v].np = (node_ptr) new        CmdQMeta(gUp[v].name, x->hash, x->cpu, x->b, 0);}
+        else if (cmp == "listdst")  {gUp[v].np = (node_ptr) new        DestList(gUp[v].name, x->hash, x->cpu, x->b, 0);}
+        else if (cmp == "qbuf")     {gUp[v].np = (node_ptr) new      CmdQBuffer(gUp[v].name, x->hash, x->cpu, x->b, 0);}
+        else if (cmp == "meta")     {throw std::runtime_error("Pure meta type not yet implemented"); return;}
+        else                        {throw std::runtime_error("Node <" + gUp[v].name + ">'s type <" + cmp + "> is not supported!\nMost likely you forgot to set the type attribute or accidentally created the node by a typo in an edge definition."); return;}
+      }  
 
+    }
 
+    sLog << std::endl;
+
+    atUp.debug();
 
     BOOST_FOREACH( vertex_t v, vertices(gUp) ) {
       gUp[v].np->accept(VisitorUploadCrawler(gUp, v, atUp)); 
@@ -275,8 +304,9 @@ const std::string CarpeDM::needle(CarpeDM::deadbeef, CarpeDM::deadbeef + 4);
     Graph gTmp;
     gUp.clear();
     download();
-    atUp = atDown;
-    copy_graph(gDown, gUp);
+    //atUp.syncToAtBmps(atDown); //use the bmps of the changed download allocation table for upload
+    //atUp = atDown;
+    //copy_graph(gDown, gUp);
     
     prepareUpload(parseDot(fn, gTmp));
     atUp.updateBmps();
@@ -515,7 +545,7 @@ const std::string CarpeDM::needle(CarpeDM::deadbeef, CarpeDM::deadbeef + 4);
 
         
 
-          if (!(at.insert(cpu, adr, hash, v))) {throw std::runtime_error( std::string("Hash or address collision when adding node ") + name); return;};
+          if (!(at.insert(cpu, adr, hash, v, false))) {throw std::runtime_error( std::string("Hash or address collision when adding node ") + name); return;};
 
 
           
@@ -625,9 +655,10 @@ const std::string CarpeDM::needle(CarpeDM::deadbeef, CarpeDM::deadbeef + 4);
       auto x = at.lookupVertex(v);
       
       if( !(filterMeta) || (filterMeta & !(g[v].np->isMeta())) ) {
-        std::cout   << std::setfill(' ') << std::setw(4) << std::dec << (at.isOk(x) ? (int)x->cpu : -1 ) 
-        << "   "    << std::setfill(' ') << std::setw(4) << std::dec << (int)(at.isOk(x) && x->staged)  
-        << "   "    << std::setfill(' ') << std::setw(2) << std::dec << (int)(!(at.isOk(x))) 
+        std::cout   << std::setfill(' ') << std::setw(4) << std::dec << v 
+        << "   "    << std::setfill(' ') << std::setw(2) << std::dec << (int)(at.isOk(x) && x->staged)  
+        << " "      << std::setfill(' ') << std::setw(1) << std::dec << (int)(!(at.isOk(x)))
+        << "   "    << std::setfill(' ') << std::setw(4) << std::dec << (at.isOk(x) ? (int)x->cpu : -1 )  
         << "   "    << std::setfill(' ') << std::setw(40) << std::left << g[v].name 
         << "   0x"  << std::hex << std::setfill('0') << std::setw(8) << (at.isOk(x) ? x->hash  : 0 )
         << "   0x"  << std::hex << std::setfill('0') << std::setw(8) << (at.isOk(x) ? at.adr2intAdr(x->cpu, x->adr)  : 0 ) 

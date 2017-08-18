@@ -290,9 +290,9 @@ bool CarpeDM::connect(const std::string& en) {
     dp.property("dest",     boost::get(&myVertex::flowDest,   g));
     dp.property("target",   boost::get(&myVertex::flowTarget, g));
 
-    dp.property("qIl",      boost::get(&myVertex::qIl,   g));
-    dp.property("qHi",      boost::get(&myVertex::qHi,   g));
-    dp.property("qLo",      boost::get(&myVertex::qLo,   g));
+    dp.property("qil",      boost::get(&myVertex::qIl,   g));
+    dp.property("qhi",      boost::get(&myVertex::qHi,   g));
+    dp.property("qlo",      boost::get(&myVertex::qLo,   g));
 
     return (const boost::dynamic_properties)dp;
   }  

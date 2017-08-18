@@ -95,7 +95,9 @@ public:
   void clrStaged(amI it) { a.modify(it, [](AllocMeta& e){e.staged = false;}); }
   bool isStaged(amI it)  { return it->staged; }
 
-  void setV(amI it, vertex_t v) { a.modify(it, [v](AllocMeta& e){e.v = v;}); } 
+  //FIXME
+        ////// WORKAROUND - not time to figure out fucking modify_key lambda syntax now /////
+  //void setV(amI it, vertex_t vNew) { a.get<Vertex>().modify_key(it, [vNew](vertex_t& v){v = vNew;}); } 
 
   //Allocation functions
 // TODO - Maybe better with pair <iterator, bool> to get a direct handle on the inserted/allocated element?
@@ -138,6 +140,8 @@ public:
   const uint32_t adr2extAdr(const uint8_t cpu, const uint32_t a)       const  { return a + vPool[cpu].extBaseAdr; }
   const uint32_t adr2intAdr(const uint8_t cpu, const uint32_t a)       const  { return a + vPool[cpu].intBaseAdr; }
   const uint32_t adr2peerAdr(const uint8_t cpu, const uint32_t a)      const  { return a + vPool[cpu].peerBaseAdr; }
+
+  void debug();
 
 };
 

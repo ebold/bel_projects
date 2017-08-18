@@ -45,12 +45,12 @@ public:
 
   //Timing Message
   std::string id = "0xD15EA5EDDEADBEEF";
-  std::string id_fid ;
-  std::string id_gid;
-  std::string id_evtno;
-  std::string id_sid;
-  std::string id_bpid;
-  std::string id_res;
+  std::string id_fid    = "0";
+  std::string id_gid    = "0";
+  std::string id_evtno  = "0";
+  std::string id_sid    = "0";
+  std::string id_bpid   = "0";
+  std::string id_res    = "0";
 
   std::string par = "0xD15EA5EDDEADBEEF";
   std::string tef = "0";

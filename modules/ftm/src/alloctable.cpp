@@ -3,11 +3,11 @@
   
 
   bool AllocTable::insert(uint8_t cpu, uint32_t adr, uint32_t hash, vertex_t v, bool staged) {
-    /*
+   /*
     std::cout << "Problem: " << std::endl; 
-    if (lookupAdr(cpu, adr) != NULL) std::cout << (int)cpu << " Adr 0x" << std::hex << adr << " exists already" << std::endl;
-    if (lookupHash(hash) != NULL) std::cout << "Hash 0x" << std::hex << hash << " exists already" << std::endl;
-    if (lookupVertex(v) != NULL) std::cout << "V 0x" << std::dec << v << " exists already" << std::endl;
+    if (lookupAdr(cpu, adr) != a.end()) std::cout << (int)cpu << " Adr 0x" << std::hex << adr << " exists already" << std::endl;
+    if (lookupHash(hash) != a.end()) std::cout << "Hash 0x" << std::hex << hash << " exists already" << std::endl;
+    if (lookupVertex(v) != a.end()) std::cout << "V 0x" << std::dec << v << " (hash 0x" << hash << ") exists already" << std::endl;
     */
     vPool[cpu].occupyChunk(adr);
     auto x = a.insert({cpu, adr, hash, v, staged});
@@ -131,4 +131,16 @@
     this->a = src.a;
     this->syncToAtBmps(src);
     this->updatePools();
-  }  
+  }
+
+  void AllocTable::debug() {
+    for (amI x = a.begin(); x != a.end(); x++) {
+
+    std::cout   << std::setfill(' ') << std::setw(4) << std::dec << x->v 
+        << "   "    << std::setfill(' ') << std::setw(2) << std::dec << (int)x->staged
+        << "   "    << std::setfill(' ') << std::setw(4) << std::dec << (int)x->cpu
+        << "   0x"  << std::hex << std::setfill('0') << std::setw(8) << x->hash
+        << "   0x"  << std::hex << std::setfill('0') << std::setw(8) << adr2intAdr(x->cpu, x->adr) 
+        << "   0x"  << std::hex << std::setfill('0') << std::setw(8) << adr2extAdr(x->cpu, x->adr)  << std::endl;
+    }    
+  }

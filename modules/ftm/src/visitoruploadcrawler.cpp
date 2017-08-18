@@ -45,7 +45,8 @@ void VisitorUploadCrawler::updateStaging() const {
       boost::tie(out_begin, out_end) = out_edges(v, g);  
       for (out_cur = out_begin; out_cur != out_end; ++out_cur) {
         auto child = at.lookupVertex(target(*out_cur, g));
-        if (at.isOk(child) || child->staged) { //it's an out edge to removed child node OR an out edge to added child node
+        if (at.isOk(child) && child->staged) { //it's an out edge to removed child node OR an out edge to added child node
+          std::cout << g[x->v].name << ", parent of " << g[child->v].name << ", should also be staged !" << std::endl;
           at.setStaged(x); // stage current node
         } 
       }  
@@ -56,7 +57,7 @@ void VisitorUploadCrawler::updateStaging() const {
 void VisitorUploadCrawler::updateListDstStaging(amI x) const {
   Graph::out_edge_iterator out_begin, out_end, out_cur;
 
-  if (g[*out_cur].type == sAD) { 
+  
     // this is edge leads to  staged Alternative Dst, find this Block's Dst List 
     boost::tie(out_begin, out_end) = out_edges(x->v,g);  
     for (out_cur = out_begin; out_cur != out_end; ++out_cur) {
@@ -67,7 +68,7 @@ void VisitorUploadCrawler::updateListDstStaging(amI x) const {
         break;
       }
     }
-  }
+  
 }
 
 void VisitorUploadCrawler::updateBlockStaging() const {
@@ -81,7 +82,8 @@ void VisitorUploadCrawler::updateBlockStaging() const {
     boost::tie(out_begin, out_end) = out_edges(v, g);  
     for (out_cur = out_begin; out_cur != out_end; ++out_cur) {
       auto child = at.lookupVertex(target(*out_cur, g));
-      if (at.isOk(child) || child->staged) { //it's an out edge to removed child node OR an out edge to added child node
+      if (at.isOk(child) && child->staged) { //it's an out edge to removed child node OR an out edge to added child node
+        std::cout << g[x->v].name << ", parent of " << g[child->v].name << ", should also be staged !" << std::endl;
         at.setStaged(x);  // stage our current Block
         updateListDstStaging(x); // stage its Destination List
       } 

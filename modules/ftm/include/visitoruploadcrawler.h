@@ -23,10 +23,10 @@ class CmdQBuffer;
 class DestList;
 
 class VisitorUploadCrawler {
-    Graph& g;
-    vertex_t v;
-    AllocTable&     at;
-    uint8_t         cpu;
+    Graph&      g;
+    vertex_t    v;
+    AllocTable& at;
+    int         cpu = -1;
 
     void updateStaging() const;
     void updateListDstStaging(amI x) const;
@@ -40,7 +40,7 @@ class VisitorUploadCrawler {
     vAdr getListDst(void)   const;
 
   public:
-    VisitorUploadCrawler(Graph& g, vertex_t v, AllocTable& at)  : g(g), v(v), at(at) { auto x = at.lookupVertex(v); if (at.isOk(x)) cpu = x->cpu; else throw std::runtime_error(g[v].name + "cpu lookup failed ... crawler upload");};
+    VisitorUploadCrawler(Graph& g, vertex_t v, AllocTable& at)  : g(g), v(v), at(at) { auto x = at.lookupVertex(v); if (at.isOk(x)) cpu = x->cpu;}
     ~VisitorUploadCrawler() {};
     virtual void visit(const Block& el) const;
     virtual void visit(const TimingMsg& el) const;
