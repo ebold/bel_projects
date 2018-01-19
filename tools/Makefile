@@ -53,8 +53,10 @@ io-test: io-test.cpp
 	g++ $(CFLAGS) -I $(ECA) -I $(TLU) -o io-test io-test.cpp -L $(ECA) -L $(TLU) $(LIBS) -leca -ltlu
 
 eb-reset: eb-reset.c
-	$(CC) $(CFLAGS) -I$(WBDIR) -I$(WRPC)/include -I$(WRPC)/pp_printf $(WBDIR)/wb_api.c  $(WRPC)/dev/w1.c $(WRPC)/dev/w1-temp.c $(WRPC)/dev/w1-eeprom.c $(WRPC)/tools/eb-w1.c -o eb-reset eb-reset.c $(LIBS)	
+	$(CC) $(CFLAGS) -I$(WBDIR) -I$(WRPC)/include -I$(WRPC)/pp_printf $(WBDIR)/wb_api.c  $(WRPC)/dev/w1.c $(WRPC)/dev/w1-temp.c $(WRPC)/dev/w1-eeprom.c $(WRPC)/tools/eb-w1.c -o eb-reset eb-reset.c $(LIBS)
 
+eb-eca: eb-eca-lm32-poll.c
+	g++ $(CFLAGS) -I$(WBDIR) -o eb-eca-lm32-poll eb-eca-lm32-poll.c $(LIBS)	
 
 
 
