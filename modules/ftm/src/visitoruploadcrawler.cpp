@@ -331,106 +331,60 @@ vAdr VisitorUploadCrawler::getFlowDst() const {
 }
 
 vAdr VisitorUploadCrawler::getListDst() const {
-  bool found;
-
-  
   vAdr ret;
-  Graph::out_edge_iterator out_begin, out_end, out_cur;
   Graph::in_edge_iterator in_begin, in_end;
   vertex_t vp;
 
   //get the parent. there shall be only one, a block (no check for that right now, sorry)
-
-  //sErr << " crawling edges for " << g[v].name << "'s destlist" << std::endl;
-
   boost::tie(in_begin, in_end) = in_edges(v,g);
   vp = source(*in_begin,g);
-  
-  
-  boost::tie(out_begin, out_end) = out_edges(vp,g);
-  
-  //search parent blocks default destination
-  
-  found = false;
-  for (out_cur = out_begin; out_cur != out_end; ++out_cur)
-  {   
-    
-    if (g[target(*out_cur,g)].np == nullptr) sErr << g[target(*out_cur,g)].name << " is UNDEFINED" << std::endl;
-    else {
 
-      if (!(g[target(*out_cur,g)].np->isMeta()) && g[*out_cur].type == det::sDefDst) {
-        if (found) {sErr << "Found more than one default destination" << std::endl; break;
-        } else {
-          auto x = at.lookupVertex(target(*out_cur,g));
-          // Destination MUST NOT lie outside own memory! (well, technically, it'd work, but it'd be race condition galore ...)
-          if (at.isOk(x) && x->cpu == cpu) {
-            ret.push_back(at.adrConv(AdrType::MGMT, AdrType::INT, x->cpu, x->adr));
-            found = true;
-            //sLog << "defDst: " << g[target(*out_cur,g)].name << " @ 0x" << std::hex << at.adrConv(AdrType::MGMT, AdrType::INT,cpu, x->adr) << std::endl;
-          } else { sErr << "default destination was found unallocated or on different CPU" << std::endl; }
-        }
-      }
-    }  
-  }
-  if (!(found)) { ret.push_back(LM32_NULL_PTR); 
-    //sLog << "No def dest found" << std::endl; 
-  }
+  //search for default destination  
+  childrenAdrs(getChildrenByEdgeType(vp, det::sDefDst), ret);
 
   //search parent blocks alternative destinations
-  found = false;
-  for (out_cur = out_begin; out_cur != out_end; ++out_cur)
-  {   
-    if (g[target(*out_cur,g)].np == nullptr) sErr << g[target(*out_cur,g)].name << " is UNDEFINED" << std::endl;
-    else {
-
-      if (g[*out_cur].type == det::sAltDst) {
-        auto x = at.lookupVertex(target(*out_cur,g));
-        // Destination MUST NOT lie outside own memory! (well, technically, it'd work, but it'd be race condition galore ...)
-        if (at.isOk(x)) {
-          if (  x->cpu == cpu) {
-            ret.push_back(at.adrConv(AdrType::MGMT, AdrType::INT, x->cpu, x->adr));
-            found = true;
-            //sLog << "altDst: #" << target(*out_cur,g) << " " << g[target(*out_cur,g)].name << " @ 0x" << std::hex << at.adrConv(AdrType::MGMT, AdrType::INT,cpu, x->adr) << std::endl;
-          } else { sLog << "altDst: #" << target(*out_cur,g) << " " << g[target(*out_cur,g)].name << " @ 0x" << std::hex << at.adrConv(AdrType::MGMT, AdrType::INT,cpu, x->adr) << " expected at CPU" << cpu << ", found on " << (int)x->cpu << "" << std::endl;  at.debug(sLog);}
-        } else { 
-          //sErr << "alt destination was found unallocated" << std::endl; 
-        }
-      }
-    }  
-  }
-  /*
-  if (!(found)) { //ret.push_back(LM32_NULL_PTR); 
-    sLog << "No alt dest found" << std::endl; }
-  */
-
-
+  childrenAdrs(getChildrenByEdgeType(vp, det::sAltDst), ret, 0, 9);
   
   return ret;
 
 }
 
-/*
+
 // starting on helper functions for cleanup
-vAdr getChildrenByEdgeType(vertex_t vStart, const std::string edgeType, const unsigned int minResultLen, const unsigned int maxResultLen, const uint32_t resultPadData ) {
+vertex_set_t VisitorUploadCrawler::getChildrenByEdgeType(vertex_t vStart, const std::string edgeType) const {
   Graph::out_edge_iterator out_begin, out_end, out_cur;
-  vAdr ret;
+  vertex_set_t ret;
   boost::tie(out_begin, out_end) = out_edges(vStart,g);
 
   for (out_cur = out_begin; out_cur != out_end; ++out_cur)
   {   
     if (g[target(*out_cur,g)].np == nullptr) throw std::runtime_error( exIntro + "Node " + g[target(*out_cur,g)].name + " of type " + g[target(*out_cur,g)].type + " has not data object\n");
-    if (g[*out_cur].type == edgeType) {
-      auto x = at.lookupVertex(target(*out_cur,g));
-      if (!at.isOk(x)) throw std::runtime_error( exIntro + "Node " + g[target(*out_cur,g)].name + " of type " + g[target(*out_cur,g)].type + " was found unallocated\n");
-      ret.push_back(x->cpu == cpu ? at.adrConv(AdrType::MGMT, AdrType::INT, x->cpu, x->adr) : at.adrConv(AdrType::MGMT, AdrType::PEER, x->cpu, x->adr));
-      if (ret.size() >= maxResultLen) break;
-    }
+    if (g[*out_cur].type == edgeType) { ret.insert(target(*out_cur, g));}
   }
-  for (int i = ret.size(); i <= minResultLen; i++ ) ret.push_back(resultPadData);
-
+  
   return ret;  
 }  
 
+
+vAdr& VisitorUploadCrawler::childrenAdrs(vertex_set_t vs, vAdr& ret, const unsigned int minResults, const unsigned int maxResults, const uint32_t resultPadData) const {
+  unsigned int results = ret.size();
+
+  for (auto& itVs : vs ) {
+    if (ret.size() >= results + maxResults) break;
+    auto x = at.lookupVertex(itVs);
+    if (!at.isOk(x)) throw std::runtime_error( exIntro + "Node " + g[itVs].name + " of type " + g[itVs].type + " was found unallocated\n");
+    AdrType aTmp = (x->cpu == cpu ? AdrType::INT : AdrType::PEER);
+    ret.push_back(at.adrConv(AdrType::MGMT, aTmp, x->cpu, x->adr));
+  }
+  for (unsigned int i = ret.size(); i <= results + minResults; i++ ) ret.push_back(resultPadData);
+
+  return ret;
+}  
+
+/*
+      
+// const unsigned int minResultLen, const unsigned int maxResultLen, const uint32_t resultPadData
+// for (int i = ret.size(); i <= minResultLen; i++ ) ret.push_back(resultPadData); 
 
 
 vAdr findNodeAdrByEdgeType(vertex_t vStart, const std::string edgeType, const unsigned int minResultLen, const unsigned int maxResultLen, const uint32_t resultPadData ) {
