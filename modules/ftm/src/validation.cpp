@@ -21,9 +21,9 @@ ConstellationRule_set cRules;
 
 
 void init() {
-        cRules.insert(ConstellationRule(n::sTMsg,        e::sDefDst,     cNonMeta,  1, 1  ));
-        cRules.insert(ConstellationRule(n::sTMsg,        e::sDynPar0,    cNonMeta,  0, 1  ));
-        cRules.insert(ConstellationRule(n::sTMsg,        e::sDynPar1,    cNonMeta,  0, 1  ));
+        cRules.insert(ConstellationRule(n::sTMsg,        e::sDefDst,     cNonMeta, 1, 1  ));
+        cRules.insert(ConstellationRule(n::sTMsg,        e::sDynPar0,    cNonMeta, 0, 1  ));
+        cRules.insert(ConstellationRule(n::sTMsg,        e::sDynPar1,    cNonMeta, 0, 1  ));
         cRules.insert(ConstellationRule(n::sCmdNoop,     e::sDefDst,     cNonMeta, 0, 1  ));
         cRules.insert(ConstellationRule(n::sCmdNoop,     e::sCmdTarget,  {n::sBlock, n::sBlockFixed, n::sBlockAlign},  0, 1  ));
         cRules.insert(ConstellationRule(n::sCmdFlow,     e::sDefDst,     cNonMeta, 0, 1  ));
@@ -34,14 +34,15 @@ void init() {
         cRules.insert(ConstellationRule(n::sCmdWait,     e::sDefDst,     cNonMeta, 0, 1  ));
         cRules.insert(ConstellationRule(n::sCmdWait,     e::sCmdTarget,  {n::sBlock, n::sBlockFixed, n::sBlockAlign},  0, 1  ));
         cRules.insert(ConstellationRule(n::sBlockFixed,  e::sDefDst,     cNonMeta, 0, 1  ));
-        cRules.insert(ConstellationRule(n::sBlockFixed,  e::sAltDst,     cNonMeta, 0, 10 ));
+        cRules.insert(ConstellationRule(n::sBlockFixed,  e::sAltDst,     cNonMeta, 0, altDstMax ));
         cRules.insert(ConstellationRule(n::sBlockFixed,  e::sDstList,    {n::sDstList},                                0, 1  ));
         cRules.insert(ConstellationRule(n::sBlockFixed,  e::sQPrio[PRIO_IL],     {n::sQInfo},                          0, 1  ));
         cRules.insert(ConstellationRule(n::sBlockFixed,  e::sQPrio[PRIO_HI],     {n::sQInfo},                          0, 1  ));
         cRules.insert(ConstellationRule(n::sBlockFixed,  e::sQPrio[PRIO_LO],     {n::sQInfo},                          0, 1  ));
         cRules.insert(ConstellationRule(n::sBlockAlign,  e::sDefDst,     cNonMeta,  0, 1  ));
-        cRules.insert(ConstellationRule(n::sBlockAlign,  e::sAltDst,     cNonMeta,  0, 10 ));
+        cRules.insert(ConstellationRule(n::sBlockAlign,  e::sAltDst,     cNonMeta,  0, altDstMax ));
         cRules.insert(ConstellationRule(n::sBlockAlign,  e::sDstList,    {n::sDstList},                                0, 1  ));
+        cRules.insert(ConstellationRule(n::sDstList,     e::sDstList,    {n::sDstList},                                0, 1  ));
         cRules.insert(ConstellationRule(n::sBlockAlign,  e::sQPrio[PRIO_IL],     {n::sQInfo},                          0, 1  ));
         cRules.insert(ConstellationRule(n::sBlockAlign,  e::sQPrio[PRIO_HI],     {n::sQInfo},                          0, 1  ));
         cRules.insert(ConstellationRule(n::sBlockAlign,  e::sQPrio[PRIO_LO],     {n::sQInfo},                          0, 1  ));

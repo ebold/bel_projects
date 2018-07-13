@@ -37,6 +37,9 @@ void VisitorDownloadCrawler::setDefDst() const {
 
 }
 
+
+
+
 void VisitorDownloadCrawler::visit(const Block& el) const {
   Graph::in_edge_iterator in_begin, in_end;
   uint32_t tmpAdr;
@@ -135,56 +138,72 @@ void VisitorDownloadCrawler::visit(const CmdQBuffer& el) const {
 }
 
 void VisitorDownloadCrawler::visit(const DestList& el) const {
-  vertex_t vPblock;
-  Graph::in_edge_iterator in_begin, in_end;
-  uint32_t tmpAdr, defAdr; 
+  bool searchParent = true;  
+  unsigned hops = 0;
+  vertex_t vp, v_child = v;
 
-  //sLog << "Trying to find parent of " << g[v].name << std::endl;
-  boost::tie(in_begin, in_end) = in_edges(v,g);
-  if(in_begin != in_end) {
+  //create edge to own possible child
+  uint32_t auxAdr = writeBeBytesToLeNumber<uint32_t>(b + NODE_DEF_DEST_PTR);
+  uint32_t tmpAdr = at.adrConv(AdrType::INT, AdrType::MGMT, cpu, auxAdr);
 
-    //get the parent Block. there is only one, neighbourhood validation function made sure of this
-    vPblock = source(*in_begin,g);
+  
 
-    //add all destination (including default destination (defDstPtr might have changed during runtime) connections from the dest list to the parent block
+  if (tmpAdr != LM32_NULL_PTR) {
+    auto x = at.lookupAdr(cpu, at.adrConv(AdrType::INT, AdrType::MGMT, cpu, auxAdr));
+    boost::add_edge(v, x->v, myEdge(det::sDstList), g);
 
-    bool defaultValid = false;
-    std::string sType = det::sAltDst;
+  }
 
-    defAdr = at.adrConv(AdrType::INT, AdrType::MGMT,cpu, writeBeBytesToLeNumber<uint32_t>((uint8_t*)(at.lookupVertex(vPblock))->b + NODE_DEF_DEST_PTR));
+  // Find parent Block
+  while(hops < ((altDstMax + dstListCapacity -1) / dstListCapacity) ) { // max number of hops must be less than max depth of dstLinked List
+    std::cout << "reconstructing " << g[v].name << std::endl;
+    Graph::in_edge_iterator in_begin, in_end;
+    boost::tie(in_begin, in_end) = in_edges(v_child,g);
+    if( (in_begin == in_end) || (g[*in_begin].type != det::sDstList) ){break;} // no edges or bad edge type found
+    vp = source(*in_begin,g);
+    if( g[vp].np->isBlock() ) {searchParent = false; break;} // found the parent block 
+    v_child = vp;
+    hops++; // count the LL hops. Directly connected means hops == 0
+  }
+  if(searchParent) throw std::runtime_error(  exIntro + "DstList Node " + g[v].name + " seems to have no ancestor block!\n");
 
-    for (ptrdiff_t offs = DST_ARRAY; offs < DST_ARRAY_END; offs += _32b_SIZE_) {
-      tmpAdr = at.adrConv(AdrType::INT, AdrType::MGMT,cpu, writeBeBytesToLeNumber<uint32_t>(b + offs ));
+  //add all destination (including default destination (defDstPtr might have changed during runtime) connections from the dest list to the parent block
+  uint32_t defAdr;
+  bool defaultValid = false;
+  std::string sType = det::sAltDst;
+  
+  defAdr = at.adrConv(AdrType::INT, AdrType::MGMT,cpu, writeBeBytesToLeNumber<uint32_t>((uint8_t*)(at.lookupVertex(vp))->b + NODE_DEF_DEST_PTR));
 
-      //if tmpAdr it is the default address, change edge type to det::sDefDst (defdst)
-      if (tmpAdr == defAdr) { sType = det::sDefDst; defaultValid = true;}
-      else sType = det::sAltDst;
+  for (ptrdiff_t offs = DST_ARRAY; offs < DST_ARRAY_END; offs += _32b_SIZE_) {
+    tmpAdr = at.adrConv(AdrType::INT, AdrType::MGMT,cpu, writeBeBytesToLeNumber<uint32_t>(b + offs ));
+    // only first level dstLst node can contains default destination
+    // if tmpAdr it is the default address, change edge type to det::sDefDst (defdst)
+    if ((hops == 0) && (tmpAdr == defAdr)) { sType = det::sDefDst; defaultValid = true;}
+    else sType = det::sAltDst;
 
-      if (tmpAdr != LM32_NULL_PTR) {
-        try {
-          auto x = at.lookupAdr(cpu, tmpAdr);
-          boost::add_edge(vPblock, x->v, (myEdge){sType}, g);
-        } catch (...) {
-          if (!ct.isOk(ct.lookup(g[vPblock].name))) { throw; }
-          else {sLog << "visitDstList: Node <" << g[vPblock].name << "> has an invalid def dst, ignoring because of active covenant" << std::endl;}
+    if (tmpAdr != LM32_NULL_PTR) {
+      try {
+        auto x = at.lookupAdr(cpu, tmpAdr);
+        boost::add_edge(vp, x->v, (myEdge){sType}, g);
+      } catch (...) {
+        if (!ct.isOk(ct.lookup(g[vp].name))) { throw; }
+        else {sLog << "visitDstList: Node <" << g[vp].name << "> has an invalid def dst, ignoring because of active covenant" << std::endl;}
 
-        }
-      }  
-    }
-    if (!defaultValid) { //default destination was not in alt dest list. that shouldnt happen ... draw it in
-      sErr << "!!! DefDest not in AltDestList. Means someone set an arbitrary pointer for DefDest !!!" << std::endl;
-      if (defAdr != LM32_NULL_PTR) {
-        try {
-          auto x = at.lookupAdr(cpu, defAdr);
-          boost::add_edge(vPblock, x->v, (myEdge){det::sBadDefDst}, g);
-        } catch(...) {
-          boost::add_edge(vPblock, vPblock, (myEdge){det::sBadDefDst}, g);
-        }
+      }
+    }  
+  }
+  if (!defaultValid) { //default destination was not in alt dest list. that shouldnt happen ... draw it in
+    sErr << "!!! DefDest not in AltDestList. Means someone set an arbitrary pointer for DefDest !!!" << std::endl;
+    if (defAdr != LM32_NULL_PTR) {
+      try {
+        auto x = at.lookupAdr(cpu, defAdr);
+        boost::add_edge(vp, x->v, (myEdge){det::sBadDefDst}, g);
+      } catch(...) {
+        boost::add_edge(vp, vp, (myEdge){det::sBadDefDst}, g);
       }
     }
-  } else {
-    throw std::runtime_error( exIntro + "Node " + g[v].name + " of type " + g[v].type + " must have a parent\n");
-  }  
+  }
+ 
 
 }
 

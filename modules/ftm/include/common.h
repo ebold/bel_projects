@@ -113,6 +113,9 @@ namespace ECA {
 
 const uint64_t processingTimeMargin = 500000000ULL; // 500 ms. Is set to 0 when testmode is on to speed coverage test
 
+const unsigned dstListCapacity = 10;
+const unsigned altDstMax       = 49;
+
 typedef struct {
   uint8_t   cpu; 
   uint64_t  msgCnt;

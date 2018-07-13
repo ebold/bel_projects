@@ -107,16 +107,24 @@ using namespace DotStr::Misc;
 
 
 
-  void CarpeDM::generateDstLst(Graph& g, vertex_t v) {
-    const std::string name = g[v].name + dnm::sDstListSuffix;
-    hm.add(name);
+  void CarpeDM::generateDstLst(Graph& g, vertex_t v, unsigned dstCnt) {
+    const std::string basename = g[v].name + dnm::sDstListSuffix;
+    vertex_t v_parent = v;
     
+    std::cout << "altdstCnt is " << dstCnt << std::endl;
 
-    vertex_t vD = boost::add_vertex(myVertex(name, g[v].cpu, hm.lookup(name), nullptr, dnt::sDstList, DotStr::Misc::sHexZero), g);
-    //FIXME add to grouptable
-    g[vD].patName = g[v].patName;
-    gt.setPattern(g[vD].name, g[vD].patName, false, false);
-    boost::add_edge(v,   vD, myEdge(det::sDstList), g);
+    for(unsigned i = 0; i < ((dstCnt + 1 + dstListCapacity-1) / (dstListCapacity)); i++) {
+      vertex_t v_child;
+      std::string name = basename + "_" + std::to_string(i);
+      std::cout << "Adding " << name << std::endl;
+      hm.add(name);
+      v_child = boost::add_vertex(myVertex(name, g[v].cpu, hm.lookup(name), nullptr, dnt::sDstList, DotStr::Misc::sHexZero), g);
+      g[v_child].patName = g[v].patName;
+      gt.setPattern(g[v_child].name, g[v_child].patName, false, false);
+      boost::add_edge(v_parent, v_child, myEdge(det::sDstList), g);
+
+      v_parent = v_child;
+    }  
   }  
 
   void CarpeDM::generateQmeta(Graph& g, vertex_t v, int prio) {
@@ -162,7 +170,9 @@ using namespace DotStr::Misc;
         bool  genIl       = s2u<bool>(g[v].qIl),  hasIl = false, 
               genHi       = s2u<bool>(g[v].qHi),  hasHi = false,
               genLo       = s2u<bool>(g[v].qLo),  hasLo = false,
-              hasMultiDst = false,            hasDstLst = false;
+              hasDstLst = false;
+
+        unsigned hasMultiDst = 0;      
 
         for (out_cur = out_begin; out_cur != out_end; ++out_cur)
         { 
@@ -170,7 +180,7 @@ using namespace DotStr::Misc;
           if (g[*out_cur].type == det::sQPrio[PRIO_IL]) hasIl       = true;
           if (g[*out_cur].type == det::sQPrio[PRIO_HI]) hasHi       = true;
           if (g[*out_cur].type == det::sQPrio[PRIO_LO]) hasLo       = true;
-          if (g[*out_cur].type == det::sAltDst)         hasMultiDst = true;
+          if (g[*out_cur].type == det::sAltDst)         hasMultiDst++;
           if (g[*out_cur].type == det::sDstList)        hasDstLst   = true;
         }
 
@@ -180,27 +190,36 @@ using namespace DotStr::Misc;
         if (genIl && !hasIl ) { generateQmeta(g, v, PRIO_IL); }
         if (genHi && !hasHi ) { generateQmeta(g, v, PRIO_HI); }
         if (genLo && !hasLo ) { generateQmeta(g, v, PRIO_LO); }
-        if( (hasMultiDst | genIl | hasIl | genHi | hasHi | genLo | hasLo) & !hasDstLst)    { generateDstLst(g, v);         }
+        if( (hasMultiDst | genIl | hasIl | genHi | hasHi | genLo | hasLo) & !hasDstLst)    { generateDstLst(g, v, hasMultiDst);         }
 
       }
     }  
   }
 
-  void CarpeDM::updateListDstStaging(vertex_t v) {
-    Graph::out_edge_iterator out_begin, out_end, out_cur;
+  void CarpeDM::updateListDstStaging(vertex_t vStart) {
     Graph& g = gUp;
     AllocTable& at = atUp;
-    // the changed edge leads to Alternative Dst, find and stage the block's dstList 
-    boost::tie(out_begin, out_end) = out_edges(v,g);  
-    for (out_cur = out_begin; out_cur != out_end; ++out_cur) {
-      if (g[*out_cur].type == det::sDstList) {
-        auto dst = at.lookupVertex(target(*out_cur, g));
-        at.setStaged(dst); 
-        //std::cout << "staged " << g[dst->v].name  << std::endl; 
-        // if we found a Dst List, stage it
-        break;
+    // the changed edge leads to Alternative Dst, find and stage the block's dstLists
+    bool checkForDstList = true;
+    vertex_t v = vStart;
+
+    while (checkForDstList) {
+      checkForDstList = false;
+
+      Graph::out_edge_iterator out_begin, out_end, out_cur;
+      boost::tie(out_begin, out_end) = out_edges(v,g);  
+      for (out_cur = out_begin; out_cur != out_end; ++out_cur) {
+        if (g[*out_cur].type == det::sDstList) {
+          auto dst = at.lookupVertex(target(*out_cur, g));
+          at.setStaged(dst); 
+          std::cout << "staged " << g[dst->v].name  << std::endl; 
+          // if we found a Dst List, stage it
+          checkForDstList = true;
+          v = dst->v;
+          break;
+        }
       }
-    }
+    }  
   }
 
   void CarpeDM::updateStaging(vertex_t v, edge_t e)  {
@@ -571,7 +590,7 @@ using namespace DotStr::Misc;
     if ((boost::get_property(g, boost::graph_name)).find(DotStr::Graph::Special::sCmd) != std::string::npos) {throw std::runtime_error("Expected a schedule, but these appear to be commands (Tag '" + DotStr::Graph::Special::sCmd + "' found in graphname)"); return -1;}
     baseUploadOnDownload();
     addition(g);
-    //writeUpDotFile("upload.dot", false);
+    writeUpDotFile("upload.dot", false);
     validate(gUp, atUp, force);
     return upload(OP_TYPE_SCH_ADD);
   } 
