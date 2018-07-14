@@ -37,18 +37,72 @@ void VisitorDownloadCrawler::setDefDst() const {
 
 }
 
+bool VisitorDownloadCrawler::setAltDsts(const uint32_t defAdr)  const { 
+  unsigned hops = 0;
+  vertex_t v_parent = v, v_child, v_Block = v;
+  bool defaultListed = false;
+  
 
+  // iterate over dstList LL
+  while(hops < ((altDstMax + dstListCapacity -1) / dstListCapacity) ) { // max number of hops must be less than max depth of dstLinked List
+    std::cout << "reconstructing " << g[v].name << std::endl;
+    Graph::out_edge_iterator out_begin, out_end;
+    boost::tie(out_begin, out_end) = out_edges(v_parent,g);
+    if( (out_begin == out_end) || (g[*out_begin].type != det::sDstList) ){break;} // no edges or bad edge type found
+    v_child = target(*out_begin,g);
 
+    //add all found altDst edges to parent Block
+    for (ptrdiff_t offs = DST_ARRAY; offs < DST_ARRAY_END; offs += _32b_SIZE_) {
+      uint32_t tmpAdr = at.adrConv(AdrType::INT, AdrType::MGMT,cpu, writeBeBytesToLeNumber<uint32_t>( ((AllocMeta*)&(*(at.lookupVertex(v_child))))->b + offs ));
+  
+      if (tmpAdr != LM32_NULL_PTR) { //if the address is not null, add anything altDst edge
+        try {
+          auto x = at.lookupAdr(cpu, tmpAdr);
+          if (tmpAdr != defAdr) { boost::add_edge(v_Block, x->v, (myEdge){det::sAltDst}, g); } //if altDst address it matches defdest address, don't add again
+          else                  {defaultListed = true;}
+        } catch (...) {
+          if (!ct.isOk(ct.lookup(g[v_Block].name)) || (tmpAdr != defAdr)) { throw; }
+          else {sLog << "visitDstList: Node <" << g[v_Block].name << "> has an invalid def dst, ignoring because of active covenant" << std::endl;}
+  
+        }
+      } 
+    }
+    
+    v_parent = v_child;
+    hops++; // count the LL hops
+  }
+ 
+  return defaultListed;
+
+}
 
 void VisitorDownloadCrawler::visit(const Block& el) const {
-  Graph::in_edge_iterator in_begin, in_end;
   uint32_t tmpAdr;
+  uint32_t defAdr = at.adrConv(AdrType::INT, AdrType::MGMT,cpu, writeBeBytesToLeNumber<uint32_t>((uint8_t*)(b + NODE_DEF_DEST_PTR)));
+  bool defaultListed;
 
   
+  
+  //if the block has a altDst list, process it and set altDsts
   tmpAdr = at.adrConv(AdrType::INT, AdrType::MGMT,cpu, writeBeBytesToLeNumber<uint32_t>(b + BLOCK_ALT_DEST_PTR ));
-  //if the block has no destination list, set default destination ourself
-  if (tmpAdr != LM32_NULL_PTR) { boost::add_edge(v, ((AllocMeta*)&(*(at.lookupAdr(cpu, tmpAdr))))->v, myEdge(det::sDstList), g); }
-  else setDefDst();  
+  if (tmpAdr != LM32_NULL_PTR) { 
+    boost::add_edge(v, ((AllocMeta*)&(*(at.lookupAdr(cpu, tmpAdr))))->v, myEdge(det::sDstList), g); 
+    defaultListed = setAltDsts(defAdr);
+  } else {
+    defaultListed = true;
+  }
+
+  // set defdst
+  if (defAdr != LM32_NULL_PTR) {
+      std::string sType = defaultListed ? det::sDefDst : det::sBadDefDst;
+    try {
+      auto x = at.lookupAdr(cpu, defAdr);
+      boost::add_edge(v, x->v, (myEdge){sType}, g);
+    } catch(...) {
+      boost::add_edge(v, v, (myEdge){det::sBadDefDst}, g);
+    }
+  } 
+   
 
   tmpAdr = at.adrConv(AdrType::INT, AdrType::MGMT,cpu, writeBeBytesToLeNumber<uint32_t>(b + BLOCK_CMDQ_IL_PTR ));
   if (tmpAdr != LM32_NULL_PTR) boost::add_edge(v, ((AllocMeta*)&(*(at.lookupAdr(cpu, tmpAdr))))->v, myEdge(det::sQPrio[PRIO_IL]), g);
@@ -138,72 +192,15 @@ void VisitorDownloadCrawler::visit(const CmdQBuffer& el) const {
 }
 
 void VisitorDownloadCrawler::visit(const DestList& el) const {
-  bool searchParent = true;  
-  unsigned hops = 0;
-  vertex_t vp, v_child = v;
-
   //create edge to own possible child
   uint32_t auxAdr = writeBeBytesToLeNumber<uint32_t>(b + NODE_DEF_DEST_PTR);
   uint32_t tmpAdr = at.adrConv(AdrType::INT, AdrType::MGMT, cpu, auxAdr);
-
-  
 
   if (tmpAdr != LM32_NULL_PTR) {
     auto x = at.lookupAdr(cpu, at.adrConv(AdrType::INT, AdrType::MGMT, cpu, auxAdr));
     boost::add_edge(v, x->v, myEdge(det::sDstList), g);
 
   }
-
-  // Find parent Block
-  while(hops < ((altDstMax + dstListCapacity -1) / dstListCapacity) ) { // max number of hops must be less than max depth of dstLinked List
-    std::cout << "reconstructing " << g[v].name << std::endl;
-    Graph::in_edge_iterator in_begin, in_end;
-    boost::tie(in_begin, in_end) = in_edges(v_child,g);
-    if( (in_begin == in_end) || (g[*in_begin].type != det::sDstList) ){break;} // no edges or bad edge type found
-    vp = source(*in_begin,g);
-    if( g[vp].np->isBlock() ) {searchParent = false; break;} // found the parent block 
-    v_child = vp;
-    hops++; // count the LL hops. Directly connected means hops == 0
-  }
-  if(searchParent) throw std::runtime_error(  exIntro + "DstList Node " + g[v].name + " seems to have no ancestor block!\n");
-
-  //add all destination (including default destination (defDstPtr might have changed during runtime) connections from the dest list to the parent block
-  uint32_t defAdr;
-  bool defaultValid = false;
-  std::string sType = det::sAltDst;
-  
-  defAdr = at.adrConv(AdrType::INT, AdrType::MGMT,cpu, writeBeBytesToLeNumber<uint32_t>((uint8_t*)(at.lookupVertex(vp))->b + NODE_DEF_DEST_PTR));
-
-  for (ptrdiff_t offs = DST_ARRAY; offs < DST_ARRAY_END; offs += _32b_SIZE_) {
-    tmpAdr = at.adrConv(AdrType::INT, AdrType::MGMT,cpu, writeBeBytesToLeNumber<uint32_t>(b + offs ));
-    // only first level dstLst node can contains default destination
-    // if tmpAdr it is the default address, change edge type to det::sDefDst (defdst)
-    if ((hops == 0) && (tmpAdr == defAdr)) { sType = det::sDefDst; defaultValid = true;}
-    else sType = det::sAltDst;
-
-    if (tmpAdr != LM32_NULL_PTR) {
-      try {
-        auto x = at.lookupAdr(cpu, tmpAdr);
-        boost::add_edge(vp, x->v, (myEdge){sType}, g);
-      } catch (...) {
-        if (!ct.isOk(ct.lookup(g[vp].name))) { throw; }
-        else {sLog << "visitDstList: Node <" << g[vp].name << "> has an invalid def dst, ignoring because of active covenant" << std::endl;}
-
-      }
-    }  
-  }
-  if (!defaultValid) { //default destination was not in alt dest list. that shouldnt happen ... draw it in
-    sErr << "!!! DefDest not in AltDestList. Means someone set an arbitrary pointer for DefDest !!!" << std::endl;
-    if (defAdr != LM32_NULL_PTR) {
-      try {
-        auto x = at.lookupAdr(cpu, defAdr);
-        boost::add_edge(vp, x->v, (myEdge){det::sBadDefDst}, g);
-      } catch(...) {
-        boost::add_edge(vp, vp, (myEdge){det::sBadDefDst}, g);
-      }
-    }
-  }
- 
 
 }
 

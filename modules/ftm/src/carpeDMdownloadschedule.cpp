@@ -221,7 +221,7 @@ namespace dnt = DotStr::Node::TypeVal;
     ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     // create edges
 
-    //Two-pass for edges. First, iterate all non meta-types to establish block -> dstList parenthood
+    //Two-pass for edges. First, iterate all meta-types to establish dstList LL
     for(auto& it : at.getTable().get<Hash>()) {
       // handled by visitor
       if (g[it.v].np == nullptr) {throw std::runtime_error( std::string("Node ") + g[it.v].name + std::string("not initialised")); return;
@@ -231,12 +231,12 @@ namespace dnt = DotStr::Node::TypeVal;
         if  (!(g[it.v].np->isMeta())) g[it.v].np->accept(VisitorDownloadCrawler(g, it.v, at, ct, sLog, sErr));
       }  
     }
-    //second, iterate all meta-types
+    //second, iterate all real-types
     for(auto& it : at.getTable().get<Hash>()) {
       // handled by visitor
       if (g[it.v].np == nullptr) {throw std::runtime_error( std::string("Node ") + g[it.v].name + std::string("not initialised")); return; 
       } else {
-        if  (g[it.v].np->isMeta()) g[it.v].np->accept(VisitorDownloadCrawler(g, it.v, at, ct, sLog, sErr));
+        if  (!g[it.v].np->isMeta()) g[it.v].np->accept(VisitorDownloadCrawler(g, it.v, at, ct, sLog, sErr));
       }  
     }
 
