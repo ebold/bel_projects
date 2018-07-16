@@ -116,13 +116,13 @@ using namespace DotStr::Misc;
     for(unsigned i = 0; i < ((dstCnt + 1 + dstListCapacity-1) / (dstListCapacity)); i++) {
       vertex_t v_child;
       std::string name = basename + "_" + std::to_string(i);
-      std::cout << "Adding " << name << std::endl;
+      
       hm.add(name);
       v_child = boost::add_vertex(myVertex(name, g[v].cpu, hm.lookup(name), nullptr, dnt::sDstList, DotStr::Misc::sHexZero), g);
       g[v_child].patName = g[v].patName;
       gt.setPattern(g[v_child].name, g[v_child].patName, false, false);
       boost::add_edge(v_parent, v_child, myEdge(det::sDstList), g);
-
+      std::cout << "Adding " << g[v_parent].name << " -> " << g[v_child].name << std::endl;
       v_parent = v_child;
     }  
   }  

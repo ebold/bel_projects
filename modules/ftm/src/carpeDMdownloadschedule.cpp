@@ -228,7 +228,7 @@ namespace dnt = DotStr::Node::TypeVal;
 
       } else {
 
-        if  (!(g[it.v].np->isMeta())) g[it.v].np->accept(VisitorDownloadCrawler(g, it.v, at, ct, sLog, sErr));
+        if  (g[it.v].np->isMeta()) g[it.v].np->accept(VisitorDownloadCrawler(g, it.v, at, ct, sLog, sErr));
       }  
     }
     //second, iterate all real-types

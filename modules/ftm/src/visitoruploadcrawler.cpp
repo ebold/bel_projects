@@ -231,7 +231,7 @@ vAdr VisitorUploadCrawler::getListDst() const {
   unsigned hops = 0;
   vertex_t vp, v_child = v;
   //get the parent block
-  while(hops < ((altDstMax + dstListCapacity -1) / dstListCapacity) ) { // max number of hops must be less than max depth of dstLinked List
+  while(hops <= ((altDstMax + dstListCapacity -1) / dstListCapacity) ) { // max number of hops must be less than max depth of dstLinked List
     
     Graph::in_edge_iterator in_begin, in_end;
     boost::tie(in_begin, in_end) = in_edges(v_child,g);
