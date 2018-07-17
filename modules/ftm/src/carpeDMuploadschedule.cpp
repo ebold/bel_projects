@@ -280,6 +280,7 @@ using namespace DotStr::Misc;
     uint8_t cpu;
     int allocState;
     
+    resizeDstLsts(gUp, atUp); // if the number of altDsts changed, dst Linked Lists must be resized as well
 
 
     //allocate and init all new vertices
@@ -466,6 +467,104 @@ using namespace DotStr::Misc;
       }
     }
   }
+
+  //if a Block's number of altDsts changed, the number of dstList nodes can change as well
+  void CarpeDM::resizeDstLsts(Graph& g, AllocTable& at) {
+    if(verbose) sLog << "Resizing destination lists to fit" << std::endl;
+
+    // two possible work order structures: list of nodes to be deleted OR generated. We need to aggregate deletion so descriptors stay valid
+    vertex_set_t                  toDelete;
+
+    //find all staged blocks
+    BOOST_FOREACH( vertex_t v, vertices(g)) {
+      if (g[v].np == nullptr) {continue;} // if it doesn't have a data object, it didn't exist before and doesnt need to be resized.
+      if (!g[v].np->isBlock()) {continue;} // if it's not a block, we skip. Staging is not significant here !!!
+      //get number of necessary entries to accommodate altDst + defDst
+      unsigned reqEntries = 0; 
+      bool hasNoAltDsts = true;
+      Graph::out_edge_iterator out_begin, out_end, out_cur;
+      boost::tie(out_begin, out_end) = out_edges(v,g);
+      for (out_cur = out_begin; out_cur != out_end; ++out_cur) { 
+        if (g[*out_cur].type == det::sDefDst) { reqEntries++; }
+        if (g[*out_cur].type == det::sAltDst) { hasNoAltDsts = false; reqEntries++;} 
+      }
+      if (hasNoAltDsts) continue; // it has just the default link, skip
+
+      //get existing dstList Nodes
+      std::vector<vertex_t> vLL;
+      vertex_t v_parent = v, v_child;
+      bool followLL = true;
+      while(followLL) {  
+        followLL = false;
+        boost::tie(out_begin, out_end) = out_edges(v_parent,g);
+        for (out_cur = out_begin; out_cur != out_end; ++out_cur) { 
+          if (g[*out_cur].type == det::sDstList) {
+            v_child = target(*out_cur, g);
+            followLL = true; vLL.push_back(v_child);
+            v_parent = v_child; 
+          }
+        }
+      }
+
+      // calc required dstLstNodes. dstLsts cannot get smaller than a single node, or we'd need to modify the block (dstLst pointer) during runtime (possibly unsafe).
+      unsigned reqLLNodes = (reqEntries + dstListCapacity -1) / dstListCapacity; 
+      reqLLNodes = reqLLNodes ? reqLLNodes : 1;
+
+      if (vLL.size() > reqLLNodes ) { // delete surplus nodes
+        if(verbose) sLog << g[v].name << " needs " << reqEntries << " entries = " << reqLLNodes << " LL nodes. Currently have " << vLL.size() << ", deleting " << (vLL.size() - reqLLNodes) << std::endl;
+        auto itVll = vLL.begin() + reqLLNodes;
+        while(itVll != vLL.end()) {
+          toDelete.insert(*itVll); //marks surplus nodes for later deletion
+          ++itVll;
+        }  
+      
+      } else if (vLL.size() < reqLLNodes ) { // add missing nodes
+        if(verbose) sLog << g[v].name << " needs " << reqEntries << " entries = " << reqLLNodes << " LL nodes. Currently have " << vLL.size() << ", generating " << (reqLLNodes - vLL.size());
+        if(verbose) sLog << " at " << ( vLL.size() ? g[vLL.back()].name : g[v].name ) << std::endl;
+
+        //generate missing nodes (right now, no sense in doing it later)
+        const std::string basename = g[v].name + dnm::sDstListSuffix;
+        vertex_t v_parent = vLL.back();
+    
+        for(unsigned i = vLL.size(); i < reqLLNodes; i++) {
+          vertex_t v_child;
+          std::string name = basename + "_" + std::to_string(i);
+          hm.add(name);
+          if(verbose) sLog << "adding " << name << std::endl;
+          v_child = boost::add_vertex(myVertex(name, g[v].cpu, hm.lookup(name), nullptr, dnt::sDstList, DotStr::Misc::sHexZero), g);
+          g[v_child].patName = g[v].patName;
+          gt.setPattern(g[v_child].name, g[v_child].patName, false, false);
+          boost::add_edge(v_parent, v_child, myEdge(det::sDstList), g);
+          v_parent = v_child;
+        }  
+      } else {
+        if(verbose) sLog << g[v].name << " is fine. Needs " << reqEntries << " entries = " << reqLLNodes << " LL nodes. Currently have " << vLL.size() << std::endl;
+      }
+
+    }
+
+    //delete surplus nodes in one go
+    if (toDelete.size()) { 
+      vertex_map_t vertexMap;
+      BOOST_FOREACH( vertex_t v, vertices(gUp) ) vertexMap[v] = v;  
+      for(auto& vd : toDelete ) {
+        if(verbose) sLog << "deleting " << g[vertexMap[vd]].name << std::endl;
+        at.deallocate(g[vertexMap[vd]].hash); //using the hash is independent of vertex descriptors, so no remapping necessary yet
+        hm.remove(g[vertexMap[vd]].name);
+        gt.remove<Groups::Node>(g[vertexMap[vd]].name); 
+        boost::clear_vertex(vertexMap[vd], g); 
+        boost::remove_vertex(vertexMap[vd], g); 
+        for( auto& updateMapIt : vertexMap) {if (updateMapIt.first > vd) updateMapIt.second--; }
+      }
+      //update alloctable descriptors
+      std::vector<amI> itAtVec; //because elements change order during repair loop, we need to store iterators first
+      for( amI it = at.getTable().begin(); it != at.getTable().end(); it++) { itAtVec.push_back(it); }
+      for( auto itIt : itAtVec ) {  //now we can safely iterate over the alloctable iterators
+        at.modV(itIt, vertexMap[itIt->v]);
+      }
+    }
+  }
+
 
   void CarpeDM::subtraction(Graph& gTmp) {
 
