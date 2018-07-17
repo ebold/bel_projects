@@ -480,14 +480,14 @@ using namespace DotStr::Misc;
       if (!g[v].np->isBlock()) {continue;} // if it's not a block, we skip. Staging is not significant here !!!
       //get number of necessary entries to accommodate altDst + defDst
       unsigned reqEntries = 0; 
-      bool hasNoAltDsts = true;
+      bool hasNoDstList = true;
       Graph::out_edge_iterator out_begin, out_end, out_cur;
       boost::tie(out_begin, out_end) = out_edges(v,g);
       for (out_cur = out_begin; out_cur != out_end; ++out_cur) { 
-        if (g[*out_cur].type == det::sDefDst) { reqEntries++; }
-        if (g[*out_cur].type == det::sAltDst) { hasNoAltDsts = false; reqEntries++;} 
+        if ((g[*out_cur].type == det::sDefDst) || (g[*out_cur].type == det::sAltDst)) { reqEntries++; }
+        if (g[*out_cur].type == det::sDstList) hasNoDstList = false;
       }
-      if (hasNoAltDsts) continue; // it has just the default link, skip
+      if (hasNoDstList) continue; // it has no dstLst, skip
 
       //get existing dstList Nodes
       std::vector<vertex_t> vLL;
