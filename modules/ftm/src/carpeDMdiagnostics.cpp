@@ -234,7 +234,7 @@ namespace coverage {
     uint32_t wrIdxs = boost::dynamic_pointer_cast<Block>(g[x->v].np)->getWrIdxs(); 
     uint32_t rdIdxs = boost::dynamic_pointer_cast<Block>(g[x->v].np)->getRdIdxs();
 
-    if (verbose) sLog << "Check for orphaned commands is scanning Queue @ " << blockName << std::endl;
+    if (debug) sLog << "Check for orphaned commands is scanning Queue @ " << blockName << std::endl;
 
     for (uint8_t prio = PRIO_LO; prio <= PRIO_IL; prio++) {
       
@@ -273,8 +273,6 @@ namespace coverage {
       std::set<uint8_t> pendingIdx;
       if (pendingCnt) {for(uint8_t pidx = rdIdx; pidx < (rdIdx + pendingCnt); pidx++) {pendingIdx.insert( pidx & Q_IDX_MAX_MSK);}}
 
-      
-      if (verbose) sLog << "Prio " << (int)prio << std::endl;
 
       //find buffers of all non empty slots
       for (uint8_t i = 0; i <= Q_IDX_MAX_MSK; i++) {

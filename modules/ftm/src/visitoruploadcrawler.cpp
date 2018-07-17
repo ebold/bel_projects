@@ -244,7 +244,7 @@ vAdr VisitorUploadCrawler::getListDst() const {
 
   if(searchParent) throw std::runtime_error(  exIntro + "DstList Node " + g[v].name + " seems to have no ancestor block!\n");
 
-  std::cout << "This dstLst is at hop " << hops << std::endl;
+  //std::cout << "This dstLst is at hop " << hops << std::endl;
 
   //get dstLst own dstLst-child
   Graph::out_edge_iterator out_begin, out_end;
@@ -259,11 +259,11 @@ vAdr VisitorUploadCrawler::getListDst() const {
   vAdr::iterator sliceUpAux      = aux.begin() + (hops + 1) * dstListCapacity;
   vAdr::iterator sliceUpperBound = (std::distance(aux.end(), sliceUpAux) >= 0) ? aux.end() : sliceUpAux; // if slice end >= end of adr vector, use end of adr vector
 
-  std::cout << "Aux size is " << aux.size() << " slice lower " << std::distance(aux.begin(), sliceLowerBound) << " slice upper " << std::distance(aux.begin(), sliceUpperBound) << std::endl;
+  //std::cout << "Aux size is " << aux.size() << " slice lower " << std::distance(aux.begin(), sliceLowerBound) << " slice upper " << std::distance(aux.begin(), sliceUpperBound) << std::endl;
 
   ret.insert(ret.end(), sliceLowerBound, sliceUpperBound);
 
-  std::cout << "ret size is " << ret.size() << std::endl;
+  //std::cout << "ret size is " << ret.size() << std::endl;
 
   return ret;
 

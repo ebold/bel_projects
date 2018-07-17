@@ -111,8 +111,6 @@ using namespace DotStr::Misc;
     const std::string basename = g[v].name + dnm::sDstListSuffix;
     vertex_t v_parent = v;
     
-    std::cout << "altdstCnt is " << dstCnt << std::endl;
-
     for(unsigned i = 0; i < ((dstCnt + 1 + dstListCapacity-1) / (dstListCapacity)); i++) {
       vertex_t v_child;
       std::string name = basename + "_" + std::to_string(i);
@@ -122,7 +120,6 @@ using namespace DotStr::Misc;
       g[v_child].patName = g[v].patName;
       gt.setPattern(g[v_child].name, g[v_child].patName, false, false);
       boost::add_edge(v_parent, v_child, myEdge(det::sDstList), g);
-      std::cout << "Adding " << g[v_parent].name << " -> " << g[v_child].name << std::endl;
       v_parent = v_child;
     }  
   }  
@@ -212,7 +209,7 @@ using namespace DotStr::Misc;
         if (g[*out_cur].type == det::sDstList) {
           auto dst = at.lookupVertex(target(*out_cur, g));
           at.setStaged(dst); 
-          std::cout << "staged " << g[dst->v].name  << std::endl; 
+          //std::cout << "staged " << g[dst->v].name  << std::endl; 
           // if we found a Dst List, stage it
           checkForDstList = true;
           v = dst->v;
@@ -338,6 +335,7 @@ using namespace DotStr::Misc;
         else                        {throw std::runtime_error("Node <" + gUp[v].name + ">'s type <" + cmp + "> is not supported!\nMost likely you forgot to set the type attribute or accidentally created the node by a typo in an edge definition."); return;}
       }  
     }
+
    
     // Crawl vertices and serialise their data objects for upload
     BOOST_FOREACH( vertex_t v, vertices(gUp) ) {
@@ -451,6 +449,7 @@ using namespace DotStr::Misc;
     prepareUpload();
     atUp.syncBmpsToPools();
   
+    
   }
 
   void CarpeDM::pushMetaNeighbours(vertex_t v, Graph& g, vertex_set_t& s) {
@@ -580,7 +579,7 @@ using namespace DotStr::Misc;
     BOOST_FOREACH( vertex_t w, vertices(gTmp) ) {
       //sLog <<  "Looking at " << gTmp[w].name << std::endl;
       found = false;
-      if (verbose) sLog <<  "Searching " << std::hex << " 0x" << gTmp[w].hash << std::endl; 
+      if (debug) sLog <<  "Searching " << std::hex << " 0x" << gTmp[w].hash << std::endl; 
       BOOST_FOREACH( vertex_t v, vertices(gUp) ) {
         if ((gTmp[w].hash == gUp[v].hash)) {
           found = true;
@@ -637,10 +636,12 @@ using namespace DotStr::Misc;
     for( auto itIt : itAtVec ) {  //now we can safely iterate over the alloctable iterators
       atUp.modV(itIt, vertexMap[itIt->v]);
     }
+
     
     prepareUpload();
     atUp.syncBmpsToPools();  
     
+
   }
 
 

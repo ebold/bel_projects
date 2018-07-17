@@ -45,7 +45,6 @@ bool VisitorDownloadCrawler::setAltDsts(const uint32_t defAdr)  const {
 
   // iterate over dstList LL
   while(hops <= ((altDstMax + dstListCapacity -1) / dstListCapacity) ) { // max number of hops must be less than max depth of dstLinked List
-    std::cout << "reconstructing " << g[v].name << std::endl;
     Graph::out_edge_iterator out_begin, out_end;
     boost::tie(out_begin, out_end) = out_edges(v_parent,g);
     if( (out_begin == out_end) || (g[*out_begin].type != det::sDstList) ){break;} // no edges or bad edge type found

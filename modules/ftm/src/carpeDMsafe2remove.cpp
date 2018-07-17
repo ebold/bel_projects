@@ -44,7 +44,7 @@ bool CarpeDM::isSafeToRemove(const std::string& pattern, std::string& report, st
 
 
 bool CarpeDM::isSafeToRemove(std::set<std::string> patterns, std::string& report, std::vector<QueueReport>& vQr ) {
-  //std::cout << "verbose " << (int)verbose << " debug " << (int)debug << " sim " << (int)sim << " testmode " << (int)testmode << " optimisedS2R " << (int)optimisedS2R << std::endl; 
+  
   
 
   bool isSafe = true, isSafe2ndOpinion = true, allCovenantsUncritical = true;
@@ -77,15 +77,7 @@ bool CarpeDM::isSafeToRemove(std::set<std::string> patterns, std::string& report
 
   //make a working copy of the download graph
   vertex_map_t vertexMapTmp;
-  //boost::associative_property_map<vertex_map_t> vertexMapWrapperTmp(vertexMapTmp);
-  //std::cout << "SAFE2REMOVE **************** START COPY GRAPH Tmp " << std::endl;
-  //std::cout << "G VERTICES ***********************" << std::endl;
-  //BOOST_FOREACH( vertex_t v, vertices(g) ) std::cout << g[v].name << std::endl;
-  //copy_graph(g, gTmp, boost::orig_to_copy(vertexMapWrapperTmp));
   mycopy_graph<Graph>(g, gTmp, vertexMapTmp);
-  //  std::cout << "G VERTICES ***********************" << std::endl;
-  //BOOST_FOREACH( vertex_t v, vertices(gTmp) ) std::cout << gTmp[v].name << std::endl;
-  //std::cout << "SAFE2REMOVE **************** END COPY GRAPH Tmp" << std::endl;
   
   for (auto& it : vertexMapTmp) { //check vertex indices
     if (it.first != it.second) {throw std::runtime_error(isSafeToRemove::exIntro +  "CpyGraph Map1 Idx Translation failed! This is beyond bad, contact Dev !");}
@@ -97,9 +89,9 @@ bool CarpeDM::isSafeToRemove(std::set<std::string> patterns, std::string& report
   //add static equivalent edges of all pending flow commands to working copy
 
   //FIXME shouldn't this also be iteratively done ???  
-  if (addDynamicDestinations(gTmp, at)) { if(verbose) {sLog << "Added dynamic equivalents." << std::endl;} }
+  if (addDynamicDestinations(gTmp, at)) { if(verbose) {sLog << isSafeToRemove::exIntro << "Added dynamic equivalents." << std::endl;} }
 
-  if(verbose) sLog << "Generating filtered graph view " << std::endl;
+  if(verbose) sLog << isSafeToRemove::exIntro << "Generating filtered graph view " << std::endl;
 
 
   //Generate a filtered view, stripping all edges except default Destinations, resident flow destinations and dynamic flow destinations
@@ -107,31 +99,27 @@ bool CarpeDM::isSafeToRemove(std::set<std::string> patterns, std::string& report
   boost::filtered_graph <Graph, static_eq<EpMap>, boost::keep_all > fg(gTmp, make_static_eq(boost::get(&myEdge::type, gTmp)), boost::keep_all());
   //copy filtered view to normal graph to work with
   vertex_map_t vertexMapEq;
-  //boost::associative_property_map<vertex_map_t> vertexMapWrapperEq(vertexMapEq);
-  //std::cout << "SAFE2REMOVE **************** START COPY GRAPH Eq " << std::endl;
-  //copy_graph(fg, gEq, boost::orig_to_copy(vertexMapWrapperEq));
   mycopy_graph<boost::filtered_graph <Graph, static_eq<EpMap>, boost::keep_all >>(fg, gEq, vertexMapEq);
-  //std::cout << "SAFE2REMOVE **************** END COPY GRAPH Eq" << std::endl;
   for (auto& it : vertexMapEq) { //check vertex indices
     if (it.first != it.second) { throw std::runtime_error(isSafeToRemove::exIntro + "CpyGraph Map2 Idx Translation failed! This is beyond bad, contact Dev !");}
   }
 
-  if(verbose) sLog << "Reading Cursors " << std::endl;
+  if(verbose) sLog << isSafeToRemove::exIntro << "Reading Cursors " << std::endl;
   //try to get consistent image of active cursors
   updateModTime();
   cursors = getAllCursors(!testmode); // Set to false for debugging system behaviour with static cursors
 
   //Here comes the problem: resident commands are only of consquence if they AND their target Block are active
   //Iteratively find out which cmds are executable and add equivalent edges for them. Do this until no more new edges have to be added
-  if (addResidentDestinations(gEq, gTmp, cursors)) { if(verbose) {sLog << "Added resident equivalents." << std::endl;} }
+  if (addResidentDestinations(gEq, gTmp, cursors)) { if(verbose) {sLog << isSafeToRemove::exIntro << "Added resident equivalents." << std::endl;} }
 
   // END Basic Static Equivalent Model //
 
   // BEGIN Optimised Static Equivalent Model
   // Under certain conditions, (offending) default destinations can be replaced
   if (optimisedS2R) {
-    if(verbose) {sLog << "Starting Optimiser (Update stale defDst)" << std::endl;}
-    if (updateStaleDefaultDestinations(gEq, at, ctAux, optmisedAnalysisReport)) { if(verbose) {sLog << "Updated stale Default Destinations to reduce wait time." << std::endl;} }
+    if(verbose) {sLog << isSafeToRemove::exIntro << "Starting Optimiser (Update stale defDst)" << std::endl;}
+    if (updateStaleDefaultDestinations(gEq, at, ctAux, optmisedAnalysisReport)) { if(verbose) {sLog << isSafeToRemove::exIntro << "Updated stale Default Destinations to reduce wait time." << std::endl;} }
   }
 
   // END Optimised Static Equivalent Model
@@ -144,23 +132,24 @@ bool CarpeDM::isSafeToRemove(std::set<std::string> patterns, std::string& report
   // Crawl and map active areas
   // crawl all reverse trees we can reach from the given elements to be removed (used to be just the entry ndoes,
   // but that doesn't suffice for resident commands pointing into patterns to be removed) and add their nodes to the blacklist
+  if(verbose) sLog << isSafeToRemove::exIntro << "Starting reverse Crawlers " << std::endl;
   for (auto& vRem : remlist) {
-    if(verbose) { sLog << "Starting Crawler from " << gEq[vRem].name << std::endl; }
+    if(debug) { sLog << isSafeToRemove::exIntro << "Starting Crawler from " << gEq[vRem].name << std::endl; }
     vertex_set_t tmpTree;
     getReverseNodeTree(vRem, tmpTree, gEq, covenantsPerVertex);
     blacklist.insert(tmpTree.begin(), tmpTree.end());
   }
-  if(verbose) { sLog << "Blacklist complete" << std::endl; }
+  if(verbose) { sLog << isSafeToRemove::exIntro << "Blacklist complete" << std::endl; }
 
   
 
-  if(verbose) sLog << "Judging safety " << std::endl;
+  if(verbose) sLog << isSafeToRemove::exIntro << "Judging safety " << std::endl;
   //calculate intersection of cursors and blacklist. If the intersection set is empty, all nodes in pattern can be safely removed
   vertex_set_t si;
   set_intersection(blacklist.begin(),blacklist.end(),cursors.begin(),cursors.end(), std::inserter(si,si.begin()));
 
   for (auto& it : blacklist)  { 
-    if (verbose) { 
+    if (debug) { 
       sLog << gEq[it].name << "-- > {";
 
       for (auto& itPv : covenantsPerVertex[it]) { sLog << ((itPv != null_vertex) ? gEq[itPv].name : "NULL") << ", "; }
@@ -172,7 +161,7 @@ bool CarpeDM::isSafeToRemove(std::set<std::string> patterns, std::string& report
   //create set of all covenants which must be honoured so the prediction will hold. Because of the propagation along reverse trees, doing it for intersection members is sufficient
   for (auto& it : si)  { 
     covenants.insert(covenantsPerVertex[it].begin(), covenantsPerVertex[it].end()); 
-    if (verbose) { 
+    if (debug) { 
       sLog << gEq[it].name << "-- > {";
 
       for (auto& itPv : covenantsPerVertex[it]) { sLog << ((itPv != null_vertex) ? gEq[itPv].name : "NULL") << ", "; }
@@ -200,15 +189,13 @@ bool CarpeDM::isSafeToRemove(std::set<std::string> patterns, std::string& report
   
   if (isSafe) {
     vStrC chkNames;
-    if(verbose) { sLog << "Checking for orphaned flow commands checks against following nodes: " << std::endl; }
+    if(verbose) { sLog << isSafeToRemove::exIntro << "Checking for orphaned flow commands" << std::endl; }
     for (vertex_t vChk : remlist ) { 
-      if (verbose) std::cout << g[vChk].name << std::endl;
       chkNames.push_back(g[vChk].name);
     }
     
     BOOST_FOREACH( vertex_t vBlock, vertices(g) ) {
       if (g[vBlock].np->isBlock()) {
-        if(verbose) { sLog <<  "Checking for orphaned commands at block " << g[vBlock].name << std::endl; }
         // for each inactive block, get qeue reports to check flow destination against all entry points we want removed
         // all flows pointing to an orphan or future orphan will be marked. 
         QueueReport qr;
@@ -304,12 +291,13 @@ bool CarpeDM::isCovenantPending(cmI cov) {
 }
 
 unsigned CarpeDM::updateCovenants() {
+  if(verbose) sLog << isSafeToRemove::exIntro << " Checking convenants " << std::endl;
 
   unsigned cnt = 0;
   vStrC toDelete;
   for (cmI it = ct.getTable().begin(); it != ct.getTable().end(); it++ ) {
     if (!isCovenantPending(it)) {
-      if(verbose) std::cout << "Covenant " << it->name << " complete, removing from table" << std::endl;
+      if(verbose) sLog << isSafeToRemove::exIntro << "Covenant " << it->name << " complete, removing from table" << std::endl;
       toDelete.push_back(it->name);
     }  
     cnt++;
@@ -334,14 +322,14 @@ void CarpeDM::getReverseNodeTree(vertex_t v, vertex_set_t& sV, Graph& g, vertex_
   //Do the crawl       
   boost::tie(in_begin, in_end) = in_edges(v,g);
   for (in_cur = in_begin; in_cur != in_end; ++in_cur) {
-    if (verbose) { sLog << g[target(*in_cur, g)].name << "<-- " << g[*in_cur].type << " --" << g[source(*in_cur, g)].name  << " propcov " << ((covenant == null_vertex) ? "NULL" : g[covenant].name) << std::endl; }
+    if (verbose) { sLog << isSafeToRemove::exIntro <<  g[target(*in_cur, g)].name << "<-- " << g[*in_cur].type << " --" << g[source(*in_cur, g)].name  << " propcov " << ((covenant == null_vertex) ? "NULL" : g[covenant].name) << std::endl; }
     vertex_set_t& cpvs = covenantsPerVertex[source(*in_cur, g)];   
 
     sV.insert(source(*in_cur, g));
     if (cpvs.find(covenant) != cpvs.end()) { continue; }
 
     if (isOptimisableEdge(*in_cur, g)) {
-      if (verbose) { sLog << " Optimisable:  " << g[source(*in_cur, g)].name << "->" << g[target(*in_cur, g)].name << std::endl; }
+      if (verbose) { sLog << isSafeToRemove::exIntro <<  " Optimisable:  " << g[source(*in_cur, g)].name << "->" << g[target(*in_cur, g)].name << std::endl; }
       nextCovenant = source(*in_cur, g);
     } else {
       nextCovenant = covenant;
@@ -412,7 +400,7 @@ bool CarpeDM::addResidentDestinations(Graph& gEq, Graph& gOrig, vertex_set_t cur
         boost::tie(out_begin, out_end) = out_edges(vBlock, gEq);
         for (out_cur = out_begin; out_cur != out_end; ++out_cur) { if(gEq[*out_cur].type == det::sResFlowDst)  found = true;}
         if (!found) {
-          if (verbose) { sLog << "Adding ResFlowAuxEdge: " << gEq[vBlock].name << " -> " << gEq[vDst].name << std::endl; }
+          if (verbose) { sLog << isSafeToRemove::exIntro <<  "Adding ResFlowAuxEdge: " << gEq[vBlock].name << " -> " << gEq[vDst].name << std::endl; }
           boost::add_edge(vBlock, vDst, myEdge(det::sResFlowDst), gEq);
           addEdge = true;
           didWork = true;
@@ -432,18 +420,17 @@ bool CarpeDM::updateStaleDefaultDestinations(Graph& g, AllocTable& at, CovenantT
     if(g[vChkBlock].np->isBlock()) {
       //second, inspect their queues and see if default dest is made stale by a dominant flow
       vertex_set_t sVflowDst = getDominantFlowDst(vChkBlock, g, at, covTab, qAnalysis);
-      if(verbose) sLog << std::endl;
       for (auto& it : sVflowDst) {
         
         //if (sVflowDst.size() > 1) {throw std::runtime_error(isSafeToRemove::exIntro + "updateStaleDefDst: found more than one dominant flow, must be 0..1");}
         if(it != null_vertex) { boost::add_edge(vChkBlock, it, myEdge(det::sDomFlowDst), g); if (verbose)  sLog << "updateStaleDefDst: Adding edge to " << g[it].name << std::endl; }
-        else { if (verbose)  sLog << "updateStaleDefDst: New default would be idle, skipping edge creation" << std::endl; }
+        else { if (verbose)  sLog << isSafeToRemove::exIntro <<  "updateStaleDefDst: New default would be idle, skipping edge creation" << std::endl; }
         //find old default edge and mark for deletion
         Graph::out_edge_iterator out_begin, out_end, out_cur;
         boost::tie(out_begin, out_end) = out_edges(vChkBlock, g);
         for (out_cur = out_begin; out_cur != out_end; ++out_cur) { 
           if(g[*out_cur].type == det::sDefDst) {
-            if (verbose) sLog << "updateStaleDefDst: Found old default dst <" << g[target(*out_cur, g)].name << "> of block <" << g[vChkBlock].name << ">, changing type to non traversible" << std::endl;
+            if (verbose) sLog << isSafeToRemove::exIntro <<  "updateStaleDefDst: Found old default dst <" << g[target(*out_cur, g)].name << "> of block <" << g[vChkBlock].name << ">, changing type to non traversible" << std::endl;
             didWork = true;
             g[*out_cur].type = det::sBadDefDst;
           } 
@@ -495,14 +482,14 @@ vertex_set_t CarpeDM::getDominantFlowDst(vertex_t vQ, Graph& g, AllocTable& at, 
       if (qe.flowDst == DotStr::Node::Special::sIdle) {
         ret.insert(null_vertex); 
         qAnalysis += "->i" + std::to_string((int)qe.type) + "\n";
-        if(verbose) sLog << "updateStaleDefDst: Found dominant flow dst idle" << std::endl;
+        if(verbose) sLog << isSafeToRemove::exIntro <<  "updateStaleDefDst: Found dominant flow dst idle" << std::endl;
         return ret;
       } 
       // we ruled out that the flow leads to idle. If it's not permanent, it can't be dominant. Ignore
       if (!qe.flowPerma) {qAnalysis +=  "->p" + std::to_string((int)qe.type); continue;} 
       //found a dominant flow, insert its destination
       auto x = at.lookupHash(hm.lookup(qe.flowDst, isSafeToRemove::exIntro + "updateStaleDefDst: unknown dst"), isSafeToRemove::exIntro + "updateStaleDefDst: unknown dst");
-      if(verbose) sLog << "updateStaleDefDst: Found dominant flow dst " << g[x->v].name << std::endl;
+      if(verbose) sLog << isSafeToRemove::exIntro <<  "updateStaleDefDst: Found dominant flow dst " << g[x->v].name << std::endl;
       ret.insert(x->v);
       covTab.insert(g[vQ].name, (uint8_t)prio, i, qe); //save which element in which queue of which block is eligible to save our arse
       qAnalysis +=  "->D" + std::to_string((int)qe.type); 
@@ -523,7 +510,7 @@ bool CarpeDM::addDynamicDestinations(Graph& g, AllocTable& at) {
       //second, inspect their queues and add equivalent edges for pending flows
       vertex_set_t sVflowDst = getDynamicDestinations(vChkBlock, g, at);
       for (auto& it : sVflowDst) {
-        if(verbose) {sLog << "Adding DynFlowAuxEdge: " << g[vChkBlock].name << " -> " << g[it].name << std::endl;}
+        if(verbose) {sLog << isSafeToRemove::exIntro <<  "Adding DynFlowAuxEdge: " << g[vChkBlock].name << " -> " << g[it].name << std::endl;}
         boost::add_edge(vChkBlock, it, myEdge(det::sDynFlowDst), g);
         didWork = true;
       }
@@ -537,8 +524,6 @@ vertex_set_t CarpeDM::getDynamicDestinations(vertex_t vQ, Graph& g, AllocTable& 
 
 
   vertex_set_t ret;
-
-  if(verbose) sLog << "Searching for pending flows " << g[vQ].name << std::endl;
 
   QueueReport qr;
   vStrC fo;
@@ -556,7 +541,7 @@ vertex_set_t CarpeDM::getDynamicDestinations(vertex_t vQ, Graph& g, AllocTable& 
       if (qe.type == ACT_TYPE_FLOW) {
         if (qe.flowDst == DotStr::Node::Special::sIdle) {continue;}
         auto x = at.lookupHash(hm.lookup(qe.flowDst, isSafeToRemove::exIntro + "dyn flow dst not found"), isSafeToRemove::exIntro + "dyn flow dst not found");
-        if(verbose) sLog << "Found flow dst " << g[x->v].name << std::endl;
+        if(verbose) sLog << isSafeToRemove::exIntro <<  "Found flow dst " << g[x->v].name << std::endl;
         ret.insert(x->v); //found a pending flow, insert its destination
       }
     }  

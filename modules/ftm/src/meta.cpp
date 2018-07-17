@@ -27,14 +27,14 @@ void CmdQBuffer::serialise(const vAdr &va, uint8_t* b) const {
 };
 
 void DestList::serialise(const vAdr &va, uint8_t* b) const {
-  std::cout << "adr lst len" << va.size() << std::endl;
+  //std::cout << "adr lst len" << va.size() << std::endl;
   Meta::serialise(va, b);
 
   auto startIt = va.begin() + 1; // first element is our own possible child and was used by node serialiser
   for(auto it = startIt; it < va.end(); it++) {
     writeLeNumberToBeBytes(b + (ptrdiff_t)DST_ARRAY + std::distance(startIt, it) * _32b_SIZE_,  *it); 
   }
-  hexDump("dstlst", (char*)b, _MEM_BLOCK_SIZE );
+  //hexDump("dstlst", (char*)b, _MEM_BLOCK_SIZE );
 };
 
 void CmdQMeta::show(void) const {
