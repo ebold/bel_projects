@@ -63,8 +63,8 @@ if  [ $(hostname) == $PROSCU ]; then   # production network
     dmunipz-ctl dev/wbm0 ebmlocal 0x00267b0003f1 0xc0a8a0e5
 else                                  # test or development
     echo -e dm-unipz - start: configuring for TEST or DEVELOPMENT network on $(hostname)
-    dmunipz-ctl dev/wbm0 ebmlocal 0x00267b000621 0xc0a80b02
-    dmunipz-ctl dev/wbm0 ebmdm 0x00267b000455 0xc0a80b01
+    dmunipz-ctl dev/wbm0 ebmlocal 0x00267b000621 0xc0a80ceb
+    dmunipz-ctl dev/wbm0 ebmdm 0x00267b000422 0xc0a80c04
 fi
 
 echo -e dm-unipz - start: make firmware operational
