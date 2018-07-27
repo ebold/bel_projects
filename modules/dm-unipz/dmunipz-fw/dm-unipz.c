@@ -3,7 +3,7 @@
  *
  *  created : 2017
  *  author  : Dietrich Beck, GSI-Darmstadt
- *  version : 26-Jul-2018
+ *  version : 27-Jul-2018
  *
  *  lm32 program for gateway between UNILAC Pulszentrale and FAIR-style Data Master
  * 
@@ -34,7 +34,7 @@
  * For all questions and ideas contact: d.beck@gsi.de
  * Last update: 25-April-2015
  ********************************************************************************************/
-#define DMUNIPZ_FW_VERSION 0x000405                                   // make this consistent with makefile
+#define DMUNIPZ_FW_VERSION 0x000406                                     // make this consistent with makefile
 
 /* standard includes */
 #include <stdio.h>
@@ -1180,6 +1180,7 @@ uint32_t entryActionConfigured()
     return status;
   } 
 
+  /* chk: Data Master now without ECA. This must be replaced by different code
   // test if DM is reachable by reading from ECA input
   if ((status = ebmReadN(2000, DMUNIPZ_ECA_ADDRESS, &data, 1)) != DMUNIPZ_STATUS_OK) {
     DBPRINT1("dm-unipz: ERROR - Data Master unreachable! %d\n", status);
@@ -1187,6 +1188,7 @@ uint32_t entryActionConfigured()
   }
 
   DBPRINT1("dm-unipz: connection to DM ok - 0x%08x\n", data);
+  */
 
   // reset MIL piggy and wait
   if ((status = resetPiggyDevMil(pMILPiggy))  != MIL_STAT_OK) {
