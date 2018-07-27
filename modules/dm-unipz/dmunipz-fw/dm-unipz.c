@@ -1190,6 +1190,13 @@ uint32_t entryActionConfigured()
   DBPRINT1("dm-unipz: connection to DM ok - 0x%08x\n", data);
   */
 
+  DBPRINT1("dm-unipz: don't test connection to DM\n");
+  DBPRINT1("dm-unipz: wait a bit by printing some nonsense\n");
+  DBPRINT1("dm-unipz: wait a bit by printing more nonsense\n");
+  DBPRINT1("dm-unipz: maybe this help to avoid a crash? Very funny.\n");;
+  DBPRINT1("dm-unipz: suspecting MIL piggy....\n");;
+  
+
   // reset MIL piggy and wait
   if ((status = resetPiggyDevMil(pMILPiggy))  != MIL_STAT_OK) {
     DBPRINT1("dm-unipz: ERROR - can't reset MIL Piggy\n");
