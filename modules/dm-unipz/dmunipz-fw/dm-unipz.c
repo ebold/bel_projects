@@ -3,7 +3,7 @@
  *
  *  created : 2017
  *  author  : Dietrich Beck, GSI-Darmstadt
- *  version : 27-Jul-2018
+ *  version : 30-Jul-2018
  *
  *  lm32 program for gateway between UNILAC Pulszentrale and FAIR-style Data Master
  * 
@@ -34,7 +34,7 @@
  * For all questions and ideas contact: d.beck@gsi.de
  * Last update: 25-April-2015
  ********************************************************************************************/
-#define DMUNIPZ_FW_VERSION 0x000406                                     // make this consistent with makefile
+#define DMUNIPZ_FW_VERSION 0x000408                                     // make this consistent with makefile
 
 /* standard includes */
 #include <stdio.h>
@@ -304,6 +304,7 @@ uint32_t ebmReadN(uint32_t msTimeout, uint32_t address, uint32_t *data, uint32_t
 
   if (n32BitWords >= (DMUNIPZ_SHARED_DATA_4EB_SIZE >> 2)) return DMUNIPZ_STATUS_OUTOFRANGE;
   if (n32BitWords == 0)                                   return DMUNIPZ_STATUS_OUTOFRANGE;
+  if (pCpuRamExternalData4EB == 0x0)                      return DMUNIPZ_STATUS_OUTOFRANGE;
 
   for (i=0; i< n32BitWords; i++) data[i] = 0x0;
 
@@ -669,7 +670,7 @@ void init() // typical init for lm32
 } // init
 
 
-void initSharedMem() // determine address and clear shared mem
+void initSharedMem(uint32_t *reqState) // determine address and clear shared mem
 {
   uint32_t idx;
   const uint32_t c_Max_Rams = 10;
@@ -715,16 +716,26 @@ void initSharedMem() // determine address and clear shared mem
   pSharedNBadState    = (uint32_t *)(pShared + (DMUNIPZ_SHARED_NBADSTATE >> 2));  
   
   // find address of CPU from external perspective
+  pCpuRamExternal        = 0x0;
+  pCpuRamExternalData4EB = 0x0;
   idx = 0;
   find_device_multi(&found_clu, &idx, 1, GSI, LM32_CB_CLUSTER);	
+  if (idx == 0) {
+    *reqState = DMUNIPZ_STATE_FATAL;
+    DBPRINT1("dm-unipz: fatal error - did not find LM32-CB-CLUSTER!\n");
+  } // if idx
   idx = 0;
   find_device_multi_in_subtree(&found_clu, &found_sdb[0], &idx, c_Max_Rams, GSI, LM32_RAM_USER);
-  if(idx >= cpuId) {
+  if (idx == 0) {
+    *reqState = DMUNIPZ_STATE_FATAL;
+    DBPRINT1("dm-unipz: fatal error - did not find THIS CPU!\n");
+  } // if idx
+  else {
     pCpuRamExternal           = (uint32_t *)(getSdbAdr(&found_sdb[cpuId]) & 0x7FFFFFFF); // CPU sees the 'world' under 0x8..., remove that bit to get host bridge perspective
     pCpuRamExternalData4EB    = (uint32_t *)(pCpuRamExternal + ((DMUNIPZ_SHARED_DATA_4EB_START + SHARED_OFFS) >> 2));
-  }
-
-  DBPRINT2("dm-unipz: CPU RAM External 0x%8x, begin shared 0x%08x\n", pCpuRamExternal, SHARED_OFFS);
+  } // else idx
+  DBPRINT1("dm-unipz: CPU RAM  external 0x%08x, shared offset 0x%08x, CPU id %d\n", pCpuRamExternal, SHARED_OFFS, cpuId);
+  DBPRINT1("dm-unipz: EB write external 0x%08x\n", pCpuRamExternalData4EB);
 
   // set initial values;
   ebmClearSharedMem();
@@ -1041,7 +1052,7 @@ uint32_t releaseBeam(uint32_t msTimeout)
 
   timeoutT = getSysTime() + (uint64_t)msTimeout * (uint64_t)1000000;
 
-  while (getSysTime() < timeoutT) {                                                                                                    // check for timeout
+  while (getSysTime() < timeoutT) {                                                                                                    // chk for timeout
     if ((status = readFromPZU(IFB_ADDRESS_SIS, IO_MODULE_3, &(readPZUData.uword))) != MIL_STAT_OK) return DMUNIPZ_STATUS_DEVBUSERROR;   
     if (readPZUData.bits.SIS_Req_Ack == false)                                                     return DMUNIPZ_STATUS_OK;           
   } // while not timed out
@@ -1175,6 +1186,7 @@ uint32_t entryActionConfigured()
   uint32_t isLate;
   
   // configure EB master (SRC and DST MAC/IP are set from host)
+  DBPRINT1("dm-unipz: configuring EB Master\n");
   if ((status = ebmInit(2000)) != DMUNIPZ_STATUS_OK) {
     DBPRINT1("dm-unipz: ERROR - init of EB master failed! %d\n", status);
     return status;
@@ -1190,14 +1202,11 @@ uint32_t entryActionConfigured()
   DBPRINT1("dm-unipz: connection to DM ok - 0x%08x\n", data);
   */
 
-  DBPRINT1("dm-unipz: don't test connection to DM\n");
-  DBPRINT1("dm-unipz: wait a bit by printing some nonsense\n");
-  DBPRINT1("dm-unipz: wait a bit by printing more nonsense\n");
-  DBPRINT1("dm-unipz: maybe this help to avoid a crash? Very funny.\n");;
-  DBPRINT1("dm-unipz: suspecting MIL piggy....\n");;
+  DBPRINT1("dm-unipz: usleep ...\n");
+  usleep(100000);
+  DBPRINT1("dm-unipz: reset MIL Piggy\n");
   
-
-  // reset MIL piggy and wait
+  // reset MIL piggy
   if ((status = resetPiggyDevMil(pMILPiggy))  != MIL_STAT_OK) {
     DBPRINT1("dm-unipz: ERROR - can't reset MIL Piggy\n");
     return DMUNIPZ_STATUS_DEVBUSERROR;
@@ -1687,7 +1696,7 @@ void main(void) {
   tReady2Sis     = 0;
 
   init();                                                                   // initialize stuff for lm32
-  initSharedMem();                                                          // initialize shared memory
+  initSharedMem(&reqState);                                                 // initialize shared memory
   
   while (1) {
     cmdHandler(&reqState, &statusTransfer);                                 // check for commands and possibly request state changes
