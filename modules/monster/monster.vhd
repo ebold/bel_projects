@@ -347,6 +347,8 @@ end monster;
 
 architecture rtl of monster is
 
+  constant g_en_eca : boolean := false;
+
   constant c_is_arria5 : boolean := g_family = "Arria V";
   constant c_is_arria2 : boolean := g_family = "Arria II";
 
@@ -459,11 +461,11 @@ architecture rtl of monster is
     c_devs_reset          => f_sdb_auto_device(c_arria_reset,                    true),
     c_devs_ebm            => f_sdb_auto_device(c_ebm_sdb,                        true),
     c_devs_tlu            => f_sdb_auto_device(c_tlu_sdb,                        not g_lm32_are_ftm),
-    c_devs_eca_ctl        => f_sdb_auto_device(c_eca_slave_sdb,                  not g_lm32_are_ftm),
-    c_devs_eca_aq         => f_sdb_auto_device(c_eca_queue_slave_sdb,            not g_lm32_are_ftm),
-    c_devs_eca_tlu        => f_sdb_auto_device(c_eca_tlu_slave_sdb,              not g_lm32_are_ftm),
-    c_devs_eca_wbm        => f_sdb_auto_device(c_eca_ac_wbm_slave_sdb,           not g_lm32_are_ftm),
-    c_devs_emb_cpu        => f_sdb_auto_device(c_eca_queue_slave_sdb,            not g_lm32_are_ftm),
+    c_devs_eca_ctl        => f_sdb_auto_device(c_eca_slave_sdb,                  g_en_eca),
+    c_devs_eca_aq         => f_sdb_auto_device(c_eca_queue_slave_sdb,            g_en_eca),
+    c_devs_eca_tlu        => f_sdb_auto_device(c_eca_tlu_slave_sdb,              g_en_eca),
+    c_devs_eca_wbm        => f_sdb_auto_device(c_eca_ac_wbm_slave_sdb,           g_en_eca),
+    c_devs_emb_cpu        => f_sdb_auto_device(c_eca_queue_slave_sdb,            g_en_eca),
     c_devs_serdes_clk_gen => f_sdb_auto_device(c_wb_serdes_clk_gen_sdb,          not g_lm32_are_ftm),
     c_devs_control        => f_sdb_auto_device(c_io_control_sdb,                 true),
     c_devs_ftm_cluster    => f_sdb_auto_bridge(c_ftm_slaves,                     true),
@@ -504,7 +506,7 @@ architecture rtl of monster is
   constant c_tops_wr_fast_path : natural := 5;
 
   constant c_top_layout_req_slaves : t_sdb_record_array(c_top_slaves-1 downto 0) :=
-   (c_tops_eca_event    => f_sdb_embed_device(c_eca_event_sdb, x"7FFFFFF0"), -- must be located at fixed address
+   (c_tops_eca_event    => f_sdb_embed_device(c_eca_event_sdb, x"7FFFFFF0",    g_en_eca), -- must be located at fixed address
     c_tops_scubus       => f_sdb_auto_device(c_scu_bus_master,                 g_en_scubus),
     c_tops_mbox         => f_sdb_auto_device(c_mbox_sdb,                       true),
     c_tops_dev          => f_sdb_auto_bridge(c_dev_bridge_sdb),
@@ -674,11 +676,8 @@ architecture rtl of monster is
       2 => c_loc_embedded_cpu,
       3 => c_loc_scubus_tag);
     constant c_channel_types    : t_nat_array(2 downto 0) := c_scu_channel_types(2 downto 0);
-    constant c_dm_channel_types : t_nat_array(0 downto 0) := c_scu_channel_types(0 downto 0);
   begin
-    if g_lm32_are_ftm then
-      return c_dm_channel_types;  
-    elsif g_en_scubus then
+    if g_en_scubus then
       return c_scu_channel_types;
     else
       return c_channel_types;
@@ -697,11 +696,11 @@ architecture rtl of monster is
     if x then
         return 1;
     else
-        return 0;    
-    end if;    
+        return 0;
+    end if;
   end TO_INTEGER;
 
-  constant c_num_streams : natural := 2 - TO_INTEGER(g_lm32_are_ftm);
+  constant c_num_streams : natural := 2;
   signal s_stream_i : t_stream_array(c_num_streams-1 downto 0);
   signal s_stall_o  : std_logic_vector(c_num_streams-1 downto 0);
 
@@ -1710,23 +1709,23 @@ end generate;
       rst_ref_n_i  => rstn_ref,
       eca_time_i   => ref_tai8ns,
       serdes_dat_o => lvds_dat_fr_clk_gen);
-  end generate;  
+  end generate;
+
+  genNoSerdes : if g_lm32_are_ftm generate
+    lvds_dat_fr_clk_gen <= (others => (others => '0'));
+  end generate;
 
   -- LVDS component data input is OR between ECA chan output and SERDES clk. gen.
   gen_lvds_dat : for i in lvds_dat'range generate
     lvds_dat(i) <= lvds_dat_fr_eca_chan(i) or lvds_dat_fr_clk_gen(i) or lvds_dat_fr_ioc(i) or lvds_dat_fr_butis_t0(i) or lvds_dat_fr_wr_pps(i);
   end generate gen_lvds_dat;
 
-  tlu_gpio : if (g_gpio_in + g_gpio_inout > 0) generate
-   s_triggers(g_gpio_in + g_gpio_inout -1 downto 0) <= f_gpio_to_trigger_array(gpio_i);
-  end generate;
+  --FIXME not sure about those ... do they need initialising when there is no ECA/TLU?
 
-  tlu_lvds : if (g_lvds_inout + g_lvds_in > 0) generate
-   s_triggers(g_gpio_in + g_gpio_inout + g_lvds_inout + g_lvds_in -1 downto g_gpio_in + g_gpio_inout) <= f_lvds_array_to_trigger_array(lvds_i(f_sub1(g_lvds_inout+g_lvds_in) downto 0));
-  end generate;
-  
+
+
   -- FTM - NO ECA --
-  genEcaTimeWoEca : if g_lm32_are_ftm generate
+  genEcaTimeWoEca : if not g_en_eca generate
 
     ftm_eca_time : eca_wr_time
     port map(
@@ -1740,9 +1739,54 @@ end generate;
     ref_tai8ns <= "000" & s_time(63 downto 3);
 
     top_msi_master_i(c_topm_eca_wbm) <= cc_dummy_slave_out; -- does not accept MSIs
+
+    -- all ECA IOs are ORed. Floating could be dangerous, set them to defined values:
+    s_eca_io <= (others => (others => '0'));
+
+
+    -- GPIO output from the ECA
+      gpio1 : if c_eca_gpio > 0 generate
+        gpio : for i in 0 to c_eca_gpio-1 generate
+          s_gpio_src_eca(i) <= '0';
+        end generate;
+      end generate;
+
+      -- LVDS output from the ECA
+      lvds1 : if c_eca_lvds > 0 generate
+        lvds : for i in 0 to c_eca_lvds-1 generate
+          bits : for b in 0 to 7 generate -- 0 goes first for ECA, 7 goes first for serdes
+            lvds_dat_fr_eca_chan(i)(b) <= '0';
+          end generate;
+        end generate;
+      end generate;
+
+      -- GPIO input to the TLU
+      gpi1 : if c_tlu_gpio > 0 generate
+        gpio : for i in 0 to c_tlu_gpio-1 generate
+          s_tlu_io(i) <= (others => '0');
+        end generate;
+      end generate;
+
+      -- LVDS input to the TLU
+      lvd1 : if c_tlu_lvds > 0 generate
+        lvds : for i in 0 to c_tlu_lvds-1 generate
+          bits : for b in 0 to 7 generate -- 0 goes first for ECA
+            s_tlu_io(i+c_tlu_gpio)(b) <= '0';
+          end generate;
+        end generate;
+      end generate;
+
+      tlu_gpio : if (g_gpio_in + g_gpio_inout > 0) generate
+        s_triggers(g_gpio_in + g_gpio_inout -1 downto 0) <= (others => (others => '0'));
+      end generate;
+
+      tlu_lvds : if (g_lvds_inout + g_lvds_in > 0) generate
+        s_triggers(g_gpio_in + g_gpio_inout + g_lvds_inout + g_lvds_in -1 downto g_gpio_in + g_gpio_inout) <= (others => (others => '0'));
+      end generate;
+
    end generate;
 
-   genEcaStuff : if not g_lm32_are_ftm generate
+   genEcaStuff : if g_en_eca generate
       tlu : wr_tlu
         generic map(
           g_num_triggers => g_gpio_in + g_gpio_inout + g_lvds_inout + g_lvds_in,
@@ -1758,10 +1802,10 @@ end generate;
           ctrl_slave_o   => dev_bus_master_i(c_devs_tlu),
           irq_master_o   => dev_msi_slave_i (c_devs_tlu),
           irq_master_i   => dev_msi_slave_o (c_devs_tlu));
-       
 
 
-      
+
+
       ecawb : eca_wb_event
         port map(
           w_clk_i    => clk_sys,
@@ -1772,9 +1816,9 @@ end generate;
           e_rst_n_i  => rstn_ref,
           e_stream_o => s_stream_i(0),
           e_stall_i  => s_stall_o(0));
-      
 
-      
+
+
       ecatlu : eca_tlu
         generic map(
           g_inputs => c_tlu_io)
@@ -1790,7 +1834,7 @@ end generate;
           a_stream_o => s_stream_i(1),
           a_stall_i  => s_stall_o(1));
 
-      
+
 
 
       eca : wr_eca
@@ -1855,6 +1899,14 @@ end generate;
         end generate;
       end generate;
 
+      tlu_gpio : if (g_gpio_in + g_gpio_inout > 0) generate
+        s_triggers(g_gpio_in + g_gpio_inout -1 downto 0) <= f_gpio_to_trigger_array(gpio_i);
+      end generate;
+
+      tlu_lvds : if (g_lvds_inout + g_lvds_in > 0) generate
+        s_triggers(g_gpio_in + g_gpio_inout + g_lvds_inout + g_lvds_in -1 downto g_gpio_in + g_gpio_inout) <= f_lvds_array_to_trigger_array(lvds_i(f_sub1(g_lvds_inout+g_lvds_in) downto 0));
+      end generate;
+
       c0 : eca_queue
         generic map(
           g_queue_id  => 0)
@@ -1868,7 +1920,7 @@ end generate;
           q_slave_i   => dev_bus_master_o(c_devs_eca_aq),
           q_slave_o   => dev_bus_master_i(c_devs_eca_aq));
 
-      
+
       top_msi_master_i(c_topm_eca_wbm) <= cc_dummy_slave_out; -- does not accept MSIs
 
       c1: eca_ac_wbm
@@ -1885,7 +1937,7 @@ end generate;
           slave_o     => dev_bus_master_i(c_devs_eca_wbm),
           master_o    => top_bus_slave_i(c_topm_eca_wbm),
           master_i    => top_bus_slave_o(c_topm_eca_wbm));
-      
+
 
 
       c2 : eca_queue
@@ -1900,8 +1952,8 @@ end generate;
           q_rst_n_i   => rstn_sys,
           q_slave_i   => dev_bus_master_o(c_devs_emb_cpu),
           q_slave_o   => dev_bus_master_i(c_devs_emb_cpu));
-  
-  end generate;  
+
+  end generate;
 
   eca_scu : if g_en_scubus generate
     c3 : eca_scubus_channel
