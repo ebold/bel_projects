@@ -105,7 +105,8 @@ entity monster is
 	g_lm32_profiles        : string;
     g_lm32_are_ftm         : boolean;
     g_en_tempsens          : boolean;
-    g_delay_diagnostics    : boolean);
+    g_delay_diagnostics    : boolean;
+    g_en_eca               : boolean);
   port(
     -- Required: core signals
     core_clk_20m_vcxo_i    : in    std_logic;
@@ -346,8 +347,6 @@ entity monster is
 end monster;
 
 architecture rtl of monster is
-
-  constant g_en_eca : boolean := false;
 
   constant c_is_arria5 : boolean := g_family = "Arria V";
   constant c_is_arria2 : boolean := g_family = "Arria II";
