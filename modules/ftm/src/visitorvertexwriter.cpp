@@ -127,6 +127,7 @@ void VisitorVertexWriter::visit(const TimingMsg& el) const {
 void VisitorVertexWriter::visit(const Noop& el) const {
   pushNodeInfo((Node&)el); 
   pushPair(dnp::Base::sType, dnt::sCmdNoop);
+  pushPair(dnp::Cmd::sPrio,  el.getPrio(), FormatNum::DEC);
   pushEventInfo((Event&)el);
   pushCommandInfo((Command&) el);
   pushPair(dnp::Cmd::sQty, el.getQty(), FormatNum::DEC);
@@ -141,6 +142,7 @@ void VisitorVertexWriter::visit(const Flow& el) const  {
   pushNodeInfo((Node&)el);
   pushPair(dnp::Base::sType, dnt::sCmdFlow);
   pushCommandInfo((Command&) el);
+  pushPair(dnp::Cmd::sPrio,  el.getPrio(), FormatNum::DEC);
   pushEventInfo((Event&)el);
   pushPair(dnp::Cmd::sQty, el.getQty(), FormatNum::DEC);
   pushSingle(ec::Node::Cmd::sLookDef);
@@ -157,6 +159,8 @@ void VisitorVertexWriter::visit(const Flush& el) const {
   pushCommandInfo((Command&) el);
   pushPair(dnp::Cmd::sPrio,  el.getPrio(), FormatNum::DEC);
   pushSingle(ec::Node::Cmd::sLookDef);
+  uint32_t qFlush = el.getFlushPrio();
+  for (unsigned prio=PRIO_LO; prio <= PRIO_IL; prio++) pushPair(dnp::Block::sGenQPrio[prio], (qFlush >> prio) & 1, FormatNum::BOOL);
   //pushSingle(ec::Node::Cmd::sLookFlush);
   pushPaintedEyecandy((Node&)el);
   pushStartEyecandy((Node&)el);
@@ -166,6 +170,7 @@ void VisitorVertexWriter::visit(const Flush& el) const {
 void VisitorVertexWriter::visit(const Wait& el) const {
   pushNodeInfo((Node&)el);
   pushPair(dnp::Base::sType, dnt::sCmdWait);
+  pushPair(dnp::Cmd::sPrio,  el.getPrio(), FormatNum::DEC);
   pushEventInfo((Event&)el);
   pushCommandInfo((Command&) el);
   pushPair(dnp::Cmd::sTimeWait, el.getTWait(), FormatNum::DEC);
