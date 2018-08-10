@@ -52,12 +52,12 @@ typedef boost::multi_index_container<
         BOOST_MULTI_INDEX_MEMBER(ConstellationRule,nodeType_t,parent),
         BOOST_MULTI_INDEX_MEMBER(ConstellationRule,edgeType_t,edge)
       >
-    >,    
+    >,
     ordered_non_unique<
-      tag<MinOccurrence>, 
+      tag<MinOccurrence>,
       BOOST_MULTI_INDEX_MEMBER(ConstellationRule, unsigned int, min)
     >
-  >    
+  >
  > ConstellationRule_set;
 
 
@@ -65,10 +65,10 @@ typedef boost::multi_index_container<
   const ConstellationRule*,
   indexed_by<
     ordered_non_unique<
-      tag<MinOccurrence>, 
+      tag<MinOccurrence>,
       BOOST_MULTI_INDEX_MEMBER(ConstellationRule, unsigned int, min)
     >
-  >    
+  >
  > ConstellationRule_min_view;
 
 
@@ -76,7 +76,7 @@ typedef boost::multi_index_container<
   nodeType_t parent;
   edgeType_t edge;
   unsigned int cnt;
-  
+
   ConstellationCnt(nodeType_t parent, edgeType_t edge) : parent(parent), edge(edge), cnt(0) {}
 };
 
@@ -92,11 +92,11 @@ typedef boost::multi_index_container<
         BOOST_MULTI_INDEX_MEMBER(ConstellationCnt,edgeType_t,edge)
       >
     >
-  >    
+  >
  > ConstellationCnt_set;
 
 
-namespace MaxDepth { 
+namespace MaxDepth {
   const unsigned META   = 2;
   const unsigned EVENT  = 1000;
 };
@@ -115,7 +115,7 @@ void neighbourhoodCheck(vertex_t v, Graph& g); //check if all outedge (nodetype/
   namespace Aux {
     void metaSequenceCheckAux(vertex_t v, vertex_t vcurrent, Graph& g, unsigned int recursionLvl = 0);
   }
-  
+
 }
 
 

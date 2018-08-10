@@ -17,9 +17,9 @@ void CmdQMeta::serialise(const vAdr &va, uint8_t* b) const {
   auto startIt = va.begin() + ADR_CMDQ_BUF_ARRAY;
   //FIXME size check !
   for(auto it = startIt; it < va.end(); it++) {
-    writeLeNumberToBeBytes(b + (ptrdiff_t)CMDQ_BUF_ARRAY + (it - startIt) * _32b_SIZE_,  *it); 
+    writeLeNumberToBeBytes(b + (ptrdiff_t)CMDQ_BUF_ARRAY + (it - startIt) * _32b_SIZE_,  *it);
   }
-   
+
 };
 
 void CmdQBuffer::serialise(const vAdr &va, uint8_t* b) const {
@@ -34,7 +34,7 @@ void DestList::serialise(const vAdr &va, uint8_t* b) const {
   auto startIt = va.begin();
   //FIXME size check !
   for(auto it = startIt; it < va.end(); it++) {
-    writeLeNumberToBeBytes(b + (ptrdiff_t)DST_ARRAY + (it - startIt) * _32b_SIZE_,  *it); 
+    writeLeNumberToBeBytes(b + (ptrdiff_t)DST_ARRAY + (it - startIt) * _32b_SIZE_,  *it);
   }
 
 };

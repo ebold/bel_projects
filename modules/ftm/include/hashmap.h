@@ -36,7 +36,7 @@ private:
 
 
 protected:
-  
+
 
 public:
 
@@ -50,7 +50,7 @@ public:
   }
 
 
-  static uint32_t hash(const std::string& s); 
+  static uint32_t hash(const std::string& s);
   static uint32_t fnvHash(const char* str);
   boost::optional<const uint32_t&> add(const std::string& name);
   bool remove(const std::string& name);

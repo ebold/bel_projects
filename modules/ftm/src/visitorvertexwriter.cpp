@@ -27,7 +27,7 @@ void VisitorVertexWriter::pushPair(const std::string& p, uint64_t v, FormatNum f
     case FormatNum::BIT   : out << std::dec << (v & 1); break;
     case FormatNum::BOOL  : out << ((v & 1) ? sTrue : sFalse); break;
     default               : out << std::dec << v;
-  }  
+  }
   out << "\"";
 }
 
@@ -45,13 +45,13 @@ void VisitorVertexWriter::pushMembershipInfo(const Node& el) const {
     pushPair(dnp::Base::sPatName, el.getPattern());
     pushPair(dnp::Base::sPatEntry, (int)el.isPatEntry(), FormatNum::BOOL);
     pushPair(dnp::Base::sPatExit, (int)el.isPatExit(), FormatNum::BOOL);
-  //}  
+  //}
   //if (el.getBeamproc() != sUndefined) {
     pushPair(dnp::Base::sBpName, el.getBeamproc());
     pushPair(dnp::Base::sBpEntry, (int)el.isBpEntry(), FormatNum::BOOL);
     pushPair(dnp::Base::sBpExit, (int)el.isBpExit(), FormatNum::BOOL);
   //}
-}  
+}
 
 void VisitorVertexWriter::pushNodeInfo(const Node& el) const {
   pushStart();
@@ -63,7 +63,7 @@ void VisitorVertexWriter::pushNodeInfo(const Node& el) const {
 
 void VisitorVertexWriter::pushEventInfo(const Event& el) const {
   pushPair(dnp::TMsg::sTimeOffs, el.getTOffs(), FormatNum::DEC);
-  pushMembershipInfo((Node&)el); 
+  pushMembershipInfo((Node&)el);
 
 }
 
@@ -91,7 +91,7 @@ void VisitorVertexWriter::pushStopEyecandy(const Node& el) const {
 
 
 void VisitorVertexWriter::visit(const Block& el) const  {
-  pushNodeInfo((Node&)el); 
+  pushNodeInfo((Node&)el);
   pushPair(dnp::Base::sType, dnt::sBlock);
   pushPair(dnp::Block::sTimePeriod, el.getTPeriod(), FormatNum::DEC);
   pushMembershipInfo((Node&)el);
@@ -106,11 +106,11 @@ void VisitorVertexWriter::visit(const Block& el) const  {
 void VisitorVertexWriter::visit(const TimingMsg& el) const {
   pushNodeInfo((Node&)el);
   pushPair(dnp::Base::sType, dnt::sTMsg);
-  pushEventInfo((Event&)el);  
-  
+  pushEventInfo((Event&)el);
+
   // ID output depends on FID field
   uint64_t id = el.getId();
-  uint8_t fid = ((id >> ID_FID_POS) & ID_FID_MSK); 
+  uint8_t fid = ((id >> ID_FID_POS) & ID_FID_MSK);
   if (fid >= idFormats.size()) throw std::runtime_error("bad format id (FID) within ID field of Node '" + el.getName() + "'");
   //ouput ID subfields
   vPf& vF = idFormats[fid];
@@ -125,7 +125,7 @@ void VisitorVertexWriter::visit(const TimingMsg& el) const {
 }
 
 void VisitorVertexWriter::visit(const Noop& el) const {
-  pushNodeInfo((Node&)el); 
+  pushNodeInfo((Node&)el);
   pushPair(dnp::Base::sType, dnt::sCmdNoop);
   pushPair(dnp::Cmd::sPrio,  el.getPrio(), FormatNum::DEC);
   pushEventInfo((Event&)el);
@@ -138,7 +138,7 @@ void VisitorVertexWriter::visit(const Noop& el) const {
   pushEnd();
 }
 
-void VisitorVertexWriter::visit(const Flow& el) const  { 
+void VisitorVertexWriter::visit(const Flow& el) const  {
   pushNodeInfo((Node&)el);
   pushPair(dnp::Base::sType, dnt::sCmdFlow);
   pushCommandInfo((Command&) el);
@@ -152,7 +152,7 @@ void VisitorVertexWriter::visit(const Flow& el) const  {
   pushEnd();
 }
 
-void VisitorVertexWriter::visit(const Flush& el) const { 
+void VisitorVertexWriter::visit(const Flush& el) const {
   pushNodeInfo((Node&)el);
   pushPair(dnp::Base::sType, dnt::sCmdFlush);
   pushEventInfo((Event&)el);
