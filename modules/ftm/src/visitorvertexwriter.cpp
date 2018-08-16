@@ -99,6 +99,7 @@ void VisitorVertexWriter::visit(const Block& el) const  {
   for (unsigned prio=PRIO_LO; prio <= PRIO_IL; prio++) pushPair(dnp::Block::sGenQPrio[prio], (qInfo >> prio) & 1, FormatNum::BOOL);
   pushSingle(ec::Node::Block::sLookDef);
   pushPaintedEyecandy((Node&)el);
+  pushStartEyecandy((Node&)el);
   pushStopEyecandy((Node&)el);
   pushEnd();
 }
