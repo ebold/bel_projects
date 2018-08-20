@@ -1128,6 +1128,7 @@ begin
       rst_sys_n_i        => rstn_sys,
       rst_lm32_n_i       => s_lm32_rstn,
       tm_tai8ns_i        => s_time,
+      wr_lock_i          => tm_valid,
       lm32_masters_o     => top_bus_slave_i(top_bus_slave_i'high downto c_top_my_masters),
       lm32_masters_i     => top_bus_slave_o(top_bus_slave_o'high downto c_top_my_masters),
       lm32_msi_slaves_o  => top_msi_master_i(top_msi_master_i'high downto c_top_my_masters),
