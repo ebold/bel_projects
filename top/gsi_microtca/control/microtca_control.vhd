@@ -570,7 +570,12 @@ begin
   lvtio_oe_n_o <= not s_lvds_oe(4 downto 0);
 
   -- LEMO activity LEDs (active HI)
-  s_lvds_act_led_lvtio  <= s_lvds_i_led( 4 downto  0) or s_lvds_o_led( 4 downto  0);
+  --s_lvds_act_led_lvtio  <= s_lvds_i_led( 4 downto  0) or s_lvds_o_led( 4 downto  0);
+  s_lvds_act_led_lvtio(1) <= s_lvds_i_led(0) or s_lvds_o_led(0);
+  s_lvds_act_led_lvtio(2) <= not(s_lvds_spec_in(4));
+  s_lvds_act_led_lvtio(3) <= s_clk_lvtio_global;
+  s_lvds_act_led_lvtio(4) <= s_lvds_i_led(3) or s_lvds_o_led(3);
+  s_lvds_act_led_lvtio(5) <= s_lvds_i_led(4) or s_lvds_o_led(4);
 
   -- MTCA.4 CLK activity LEDs (active HI)
   s_lvds_act_led_mtca4_clk  <= s_lvds_i_led(8 downto 5) or s_lvds_o_led(8 downto 5);
