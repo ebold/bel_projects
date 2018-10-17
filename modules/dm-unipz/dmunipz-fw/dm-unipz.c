@@ -3,7 +3,7 @@
  *
  *  created : 2017
  *  author  : Dietrich Beck, GSI-Darmstadt
- *  version : 30-Jul-2018
+ *  version : 16-Oct-2018
  *
  *  lm32 program for gateway between UNILAC Pulszentrale and FAIR-style Data Master
  * 
@@ -34,7 +34,7 @@
  * For all questions and ideas contact: d.beck@gsi.de
  * Last update: 25-April-2015
  ********************************************************************************************/
-#define DMUNIPZ_FW_VERSION 0x000408                                     // make this consistent with makefile
+#define DMUNIPZ_FW_VERSION 0x000409                                     // make this consistent with makefile
 
 /* standard includes */
 #include <stdio.h>
@@ -1573,24 +1573,25 @@ uint32_t doActionOperation(uint32_t *statusTransfer,          // status bits ind
 
     case DMUNIPZ_ECADO_MBTRIGGER :                                                 // received MBTRIGGER: convenience feature triggering all kind of diagnostics
 
-      // calculate time difference between EVT_READY_TO_SIS and EVT_MB_TRIGGER
-      if (tReady2Sis == 0) *dtSync = 0xffffffffffffffff;                           // no valid timestamp for EVT_READY_TO_SIS
-      else                 *dtSync = deadline - tReady2Sis;                        // we got a valid timestamp
-
-      // calculate time difference between CMD_UNI_BREQ and EVT_MB_TRIGGER
-      if (tBreq == 0)      *dtInject = 0xfffffffffffffff;                          // no valid timestamp for EVT_READY_TO_SIS
-      else                 *dtInject = deadline - tBreq;                           // we got a valid timestamp
-
-      // calculate time difference between CMD_UNI_TKREQ and EVT_MB_TRIGGER
-      if (tTkreq == 0)     *dtTransfer = 0xfffffffffffffff;                        // no valid timestamp for EVT_READY_TO_SIS
-      else                 *dtTransfer = deadline - tTkreq;                        // we got a valid timestamp
-
-      if (status == DMUNIPZ_STATUS_OK) {                                           // we don't want to overwrite an already existing bad status
-        if (flagTkReq) {                                                           // only do this test, if TK is reserved (if TK is not reserved, synchronization with UNILAC is not included in the schedule)
+      if (flagTkReq) {                                                             // only do the following, if TK is reserved (if TK is not reserved, synchronization with UNILAC is not included in the schedule)
+        // calculate time difference between EVT_READY_TO_SIS and EVT_MB_TRIGGER
+        if (tReady2Sis == 0) *dtSync = 0xffffffffffffffff;                         // no valid timestamp for EVT_READY_TO_SIS
+        else                 *dtSync = deadline - tReady2Sis;                      // we got a valid timestamp
+        
+        // calculate time difference between CMD_UNI_BREQ and EVT_MB_TRIGGER
+        if (tBreq == 0)      *dtInject = 0xfffffffffffffff;                        // no valid timestamp for EVT_READY_TO_SIS
+        else                 *dtInject = deadline - tBreq;                         // we got a valid timestamp
+        
+        // calculate time difference between CMD_UNI_TKREQ and EVT_MB_TRIGGER
+        if (tTkreq == 0)     *dtTransfer = 0xfffffffffffffff;                      // no valid timestamp for EVT_READY_TO_SIS
+        else                 *dtTransfer = deadline - tTkreq;                      // we got a valid timestamp
+        
+        if (status == DMUNIPZ_STATUS_OK) {                                         // we don't want to overwrite an already existing bad status
           // check if time difference is not reasonable. It must be within a small window around the value DMUNIPZ_OFFSETINJECT.
           if ((*dtSync < (uint64_t)(DMUNIPZ_OFFSETINJECT - DMUNIPZ_MATCHWINDOW)) || (*dtSync > (uint64_t)(DMUNIPZ_OFFSETINJECT + DMUNIPZ_MATCHWINDOW))) status = DMUNIPZ_STATUS_BADSYNC;
-        } // if flagTKReq
-      } // if status
+        } // if status
+      } // if flagTKReq
+
 
       if (status == DMUNIPZ_STATUS_OK) {                                           // we don't want to overwrite an already existing bad status
         // check if time difference is not reasonable. It must be larger than 10ms. A shorter difference indicates failure/missing '10s waiting block' at DM
