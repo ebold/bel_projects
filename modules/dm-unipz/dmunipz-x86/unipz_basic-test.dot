@@ -8,7 +8,7 @@ edge  [type="defdst", color="red"]
 /* Vorbereitung, TK Reservieren etc */
 CMD_SEQ_START       [type="tmsg",      pattern="UNIPZ_GATEWAY", patentry="true",   toffs=        0, id="0x112cfaa000000001", par="0x123", shape="oval"]; /* ARMFG=1 */
 CMD_WHATEVER_01     [type="tmsg",      pattern="UNIPZ_GATEWAY",                    toffs=      100, id="0x112cfaa000000002", par="0x456", shape="oval"];
-DMCmd_InjectMulti   [type="flow",      pattern="UNIPZ_GATEWAY",                    toffs=      300, tValid=0, qty=1, color="magenta",     shape="oval"]; /* N Injektion = 2    */
+DMCmd_InjectMulti   [type="flow",      pattern="UNIPZ_GATEWAY",                    toffs=      300, vabs="true", tValid=0, qty=1, color="magenta",     shape="oval"]; /* N Injektion = 2    */
 CMD_WHATEVER_02     [type="tmsg",      pattern="UNIPZ_GATEWAY",                    toffs=      400, id="0x112cfaa000000003", par="0x456", shape="oval"];
 CMD_UNI_TKREQ       [type="tmsg",      pattern="UNIPZ_GATEWAY",                    toffs=      500, id="0x112c15e00000001a", par="0x0",   shape="oval"]; /* TK Request         */
 CMD_WHATEVER_03     [type="tmsg",      pattern="UNIPZ_GATEWAY",                    toffs=     1000, id="0x112cfaa000000004", par="0x456", shape="oval"];
@@ -27,13 +27,13 @@ DMBlk_InjectStart   [type="block",     pattern="UNIPZ_GATEWAY",                 
 CMD_WHATEVER_09     [type="tmsg",      pattern="UNIPZ_GATEWAY",                    toffs=        0, id="0x112cfaa000000012", par="0x456", shape="oval"]; /* start loop         */
 CMD_UNI_BREQ        [type="tmsg",      pattern="UNIPZ_GATEWAY",                    toffs= 30000000, id="0x112c16000000001a", par="0x456", shape="oval"]; /* UNI Beam Request   */
 DMBlk_BREQ          [type="block",     pattern="UNIPZ_GATEWAY",                  tperiod= 30001000];                                 
-DMCmd_Wait10s       [type="flow",      pattern="UNIPZ_GATEWAY",                    toffs=        0, tValid=0, qty=1000000, color="magenta", shape="oval"]; /* 1e6 reps of 10us is timeout */
+DMCmd_Wait10s       [type="flow",      pattern="UNIPZ_GATEWAY",                    toffs=        0, vabs="true", tValid=0, qty=1000000, color="magenta", shape="oval"]; /* 1e6 reps of 10us is timeout */
 DMBlk_WaitLoop      [type="block",     pattern="UNIPZ_GATEWAY",                  tperiod=    10000, qil="1", qhi="1", qlo="1"];     /* langsamer Warteblock                    */
 DMBlk_FlexWait      [type="block",     pattern="UNIPZ_GATEWAY",                  tperiod=    71111, qil="1", qhi="1", qlo="1"];     /* flexible Wartezeit, Gateway setzt Zeit! */
 CMD_WHATEVER_10     [type="tmsg",      pattern="UNIPZ_GATEWAY",                    toffs=        0, id="0x112cfaa000000013", par="0x456", shape="oval"]; /* exactly 1.5ms after EVT_READY_TO_SIS */
-Evt_MB_LOAD         [type="tmsg",      pattern="UNIPZ_GATEWAY",                    toffs=  8500000, id="0x112c027000000014", par="0x456", shape="oval"]; /* exactly 10 ms after EVT_READY_TO_SIS */
-CMD_WHATEVER_11     [type="tmsg",      pattern="UNIPZ_GATEWAY",                    toffs= 25000000, id="0x112cfaa000000015", par="0x456", shape="oval"];
-EVT_MB_TRIGGER      [type="tmsg",      pattern="UNIPZ_GATEWAY",                    toffs= 25000010, id="0x112cfaa000000016", par="0x456", shape="oval"]; /* Bumper runter      */
+Evt_MB_LOAD         [type="tmsg",      pattern="UNIPZ_GATEWAY",                    toffs=  6500000, id="0x112c027000000014", par="0x456", shape="oval"]; 
+CMD_WHATEVER_11     [type="tmsg",      pattern="UNIPZ_GATEWAY",                    toffs=  7000000, id="0x112cfaa000000015", par="0x456", shape="oval"];
+EVT_MB_TRIGGER      [type="tmsg",      pattern="UNIPZ_GATEWAY",                    toffs=  8500000, id="0x112c028000000016", par="0x456", shape="oval"]; /* exactly 10 ms after EVT_READY_TO_SIS */
 DMBlk_InjectionEnd  [type="blockalign",pattern="UNIPZ_GATEWAY",                  tperiod= 26000000, qil="1", qhi="1", qlo="1"];                          /* Ende Injektion     */
 
 /* Rest des Zyklus, Hochrampen, Flattop, Extraktion, Aufraeumen... */
