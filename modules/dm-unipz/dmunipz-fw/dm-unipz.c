@@ -3,7 +3,7 @@
  *
  *  created : 2017
  *  author  : Dietrich Beck, GSI-Darmstadt
- *  version : 16-Oct-2018
+ *  version : 18-Oct-2018
  *
  *  lm32 program for gateway between UNILAC Pulszentrale and FAIR-style Data Master
  * 
@@ -34,7 +34,7 @@
  * For all questions and ideas contact: d.beck@gsi.de
  * Last update: 25-April-2015
  ********************************************************************************************/
-#define DMUNIPZ_FW_VERSION 0x000409                                     // make this consistent with makefile
+#define DMUNIPZ_FW_VERSION 0x000410                                     // make this consistent with makefile
 
 /* standard includes */
 #include <stdio.h>
@@ -444,6 +444,7 @@ uint32_t dmPrepCmdCommon(uint32_t blk, uint32_t prio, uint32_t checkEmptyQ, uint
   
   uint32_t extBaseAddr;                                        // external base address of dm; seen from 'world' perspective
 
+  int      i;
   uint32_t status;
 
   if (prio > 2) {
@@ -522,6 +523,7 @@ uint32_t dmPrepCmdCommon(uint32_t blk, uint32_t prio, uint32_t checkEmptyQ, uint
   DBPRINT3("dm-unipz: prep cmd validTSLo 0x%08x\n", cmdValidTSLo);
   
   // assign prepared values for later use;
+  for (i=0; i<_T_CMD_SIZE_; i++) dmData[blk].cmdData[i] = 0x0;                        // init command data
   dmData[blk].hash                           = hash;
   dmData[blk].cmdAddr                        = cmdAddr;
   dmData[blk].cmdData[(T_CMD_TIME >> 2) + 0] = cmdValidTSHi;  
@@ -589,7 +591,7 @@ uint32_t dmPrepCmdFlush(uint32_t blk) // prepare flush CMD for DM - need to call
   cmdAction       |= ((1 << PRIO_LO) & ACT_FLUSH_PRIO_MSK) << ACT_FLUSH_PRIO_POS; // flush lo prio q
 
   dmData[blk].cmdData[T_CMD_ACT >> 2]            = cmdAction;
-
+  dmData[blk].cmdData[T_CMD_FLUSH_OVR >> 2]      = 0x0;
   
   return DMUNIPZ_STATUS_OK;  
 } //cmdPrepCmdFlush
