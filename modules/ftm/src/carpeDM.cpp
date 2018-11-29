@@ -404,7 +404,7 @@ bool CarpeDM::connect(const std::string& en, bool simulation, bool test) {
     std::stringstream ss;
     uint64_t id;
     uint8_t fid;
-    boost::dynamic_properties dp = createParser(g); //create current property map
+    boost::dynamic_properties dp = DotIO::createParser(g); //create current property map
 
     if (g[v].id == DotStr::Misc::sUndefined64) { // from SubID fields to ID
       //sLog << "Input Node  " << g[v].name;
@@ -442,7 +442,8 @@ bool CarpeDM::connect(const std::string& en, bool simulation, bool test) {
 
 
   boost::dynamic_properties CarpeDM::createParser(Graph& g) {
-
+    return DotIO::createParser(g);
+    /*
     boost::dynamic_properties dp(boost::ignore_other_properties);
     boost::ref_property_map<Graph *, std::string> gname( boost::get_property(g, boost::graph_name));
     dp.property(dgp::sName,     gname);
@@ -493,10 +494,13 @@ bool CarpeDM::connect(const std::string& en, bool simulation, bool test) {
     dp.property(dnp::Base::sThread,             boost::get(&myVertex::thread,     g));
 
     return (const boost::dynamic_properties)dp;
+    */
   }
 
 
   std::string CarpeDM::readTextFile(const std::string& fn) {
+    return DotIO::readTextFile(fn);
+    /*
     std::string ret;
     std::ifstream in(fn);
     if(in.good()) {
@@ -507,9 +511,12 @@ bool CarpeDM::connect(const std::string& en, bool simulation, bool test) {
     else {throw std::runtime_error(" Could not read from file '" + fn + "'");}
 
     return ret;
+    */
   }
 
   Graph& CarpeDM::parseDot(const std::string& s, Graph& g) {
+    return DotIO::parseDot(s, g);
+    /*
     boost::dynamic_properties dp = createParser(g);
 
     try { boost::read_graphviz(s, g, dp, dnp::Base::sName); }
@@ -518,6 +525,7 @@ bool CarpeDM::connect(const std::string& en, bool simulation, bool test) {
     BOOST_FOREACH( vertex_t v, vertices(g) ) { g[v].hash = hm.hash(g[v].name); } //generate hash to complete vertex information
 
     return g;
+    */
   }
 
   const std::string CarpeDM::createFwVersionString(const int fwVer) {
@@ -769,6 +777,8 @@ void CarpeDM::showCpuList() {
 
    //write out dotstringfrom download graph
   std::string CarpeDM::createDot(Graph& g, bool filterMeta) {
+    return DotIO::createDot(g, filterMeta);
+    /*
     std::ostringstream out;
     typedef boost::property_map< Graph, node_ptr myVertex::* >::type NpMap;
 
@@ -790,16 +800,20 @@ void CarpeDM::showCpuList() {
       catch(...) {throw;}
 
     return out.str();
+    */
   }
 
   //write out dotfile from download graph of a memunit
   void CarpeDM::writeTextFile(const std::string& fn, const std::string& s) {
+    return DotIO::writeTextFile(fn, s);
+    /*
     std::ofstream out(fn);
 
     if (verbose) sLog << "Writing Output File " << fn << "... ";
     if(out.good()) { out << s; }
     else {throw std::runtime_error(" Could not write to .dot file '" + fn + "'"); return;}
     if (verbose) sLog << "Done.";
+    */
   }
 
   bool CarpeDM::validate(Graph& g, AllocTable& at, bool force) {

@@ -20,6 +20,7 @@
 #include "grouptable.h"
 #include "covenanttable.h"
 #include "validation.h"
+#include "dotio.h"
 
 
 
