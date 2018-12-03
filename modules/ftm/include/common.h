@@ -196,16 +196,16 @@ typedef struct {
 class Node;
 class MiniCommand;
 
-typedef boost::shared_ptr<Node> node_ptr;
-typedef boost::shared_ptr<MiniCommand> mc_ptr;
+typedef boost::shared_ptr<Node>         node_ptr;
+typedef boost::shared_ptr<MiniCommand>    mc_ptr;
 
 
-typedef std::vector<node_ptr> npBuf;
-typedef std::vector<uint8_t> vBuf;
-typedef std::vector<uint32_t> vAdr;
-typedef std::vector<uint32_t> ebBuf;
+typedef std::vector<node_ptr>   npBuf;
+typedef std::vector<uint8_t>    vBuf;
+typedef std::vector<uint32_t>   vAdr;
+typedef std::vector<uint32_t>     ebBuf;
 typedef std::vector<std::string> vStrC;
-typedef std::vector<bool> vBl;
+typedef std::vector<bool>         vBl;
 
 typedef struct {
   vAdr va;
@@ -278,6 +278,16 @@ inline T s2u(const std::string& s) {
   return ret;
 
 }
+
+template<typename ... Args>
+std::string string_format( const std::string& format, Args ... args )
+{
+    size_t size = snprintf( nullptr, 0, format.c_str(), args ... ) + 1; // Extra space for '\0'
+    std::unique_ptr<char[]> buf( new char[ size ] ); 
+    std::snprintf( buf.get(), size, format.c_str(), args ... );
+    return std::string( buf.get(), buf.get() + size - 1 ); // We don't want the '\0' inside
+}  
+
 
 void hexDump (const char *desc, const char* addr, int len);
 
