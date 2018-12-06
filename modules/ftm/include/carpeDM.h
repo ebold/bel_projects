@@ -137,7 +137,8 @@ private:
   bool isOptimisableEdge(edge_t e, Graph& g);
   bool isCovenantPending(const std::string& covName);
   bool isCovenantPending(cmI cov);
-  unsigned updateCovenants();
+  unsigned updateCovenants(CovenantTable& addCt);
+  unsigned updateCovenants() {CovenantTable emptyCt; updateCovenants(emptyCt);};
 
   bool isSafetyCritical(vertex_set_t& covenants);
   //Coverage Tests for safe2remove
@@ -151,8 +152,8 @@ private:
   vertex_set_t getAllCursors(bool activeOnly);
   vStrC getGraphPatterns(Graph& g);
 
-  bool isSafeToRemove(std::set<std::string> patterns, std::string& report, std::vector<QueueReport>& vQr);
-  bool isSafeToRemove(std::set<std::string> patterns, std::string& report) {std::vector<QueueReport> vQr; return isSafeToRemove(patterns, report, vQr);}
+  bool isSafeToRemove(CovenantTable& ctAux, std::set<std::string> patterns, std::string& report, std::vector<QueueReport>& vQr);
+  bool isSafeToRemove(CovenantTable& ctAux, std::set<std::string> patterns, std::string& report) {std::vector<QueueReport> vQr; return isSafeToRemove(ctAux, patterns, report, vQr);}
   const std::string readFwIdROMTag(const std::string& fwIdROM, const std::string& tag, size_t maxlen, bool stopAtCr );
 
   vBuf compress(const vBuf& in);

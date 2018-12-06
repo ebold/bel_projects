@@ -84,6 +84,15 @@ public:
     return *this;
   }
 
+  CovenantTable &operator+=(const CovenantTable &src)
+  {
+    for (cmI x = src.a.begin(); x != src.a.end(); x++) { 
+      //how to report failures?
+      insert(x);
+    }
+    return *this;
+  }
+
   std::string store() {
     std::stringstream os;
     boost::archive::text_oarchive oa(os);
@@ -116,7 +125,7 @@ public:
 
   bool isOk(cmI it) const {return (it != a.end()); }
 
-  bool insert(cmI e) {
+  bool insert(cmI& e) {
     CovenantMeta m = CovenantMeta(e->name, e->prio, e->slot, e->chkSum);
     auto x = a.insert(m);
     return x.second;
@@ -141,6 +150,47 @@ public:
     for (cmI x = a.begin(); x != a.end(); x++) {
       os << x->name << " prio: " << std::dec << (int)x->prio <<  ", slot: " <<  (int)x->slot <<  ", ChkSum: 0x" << std::hex <<  x->chkSum << std::endl;
     }
+  }
+
+  bool isPending(const std::string& covName) {
+
+    cmI x = lookup(covName);
+    if (!isOk(x)) {
+    //sLog << "DBG unknonwn";
+    return false;} //throw std::runtime_error(isSafeToRemove::exIntro + ": Lookup of <" + covName + "> in covenantTable failed\n");
+    return isPending(x);
+  }
+
+  bool isPending(cmI cov) {
+    QueueReport qr;
+    getQReport(cov->name, qr);
+    QueueElement& qe = qr.aQ[cov->prio].aQe[cov->slot];
+
+    if (cov->chkSum == ct.genChecksum(qe))  return true;
+    else                                    return false;
+  }
+
+
+  unsigned add(const CovenantTable& src) {
+    this += src;
+    return src.getSize();
+  }
+
+
+  unsigned removeFullfilled() {
+    unsigned cnt = 0;
+    vStrC toDelete;
+    for (cmI it = a.begin(); it != a.end(); it++ ) {
+      if (!isPending(it)) {
+        if(verbose) std::cout << "Covenant " << it->name << " complete, removing from table" << std::endl;
+        toDelete.push_back(it->name);
+      }
+      cnt++;
+    }
+
+    for (auto it : toDelete) { remove(it); }
+
+    return cnt;
   }
 
   const CovenantMeta_set& getTable() const { return a; }

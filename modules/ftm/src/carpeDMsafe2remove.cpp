@@ -43,14 +43,90 @@ bool CarpeDM::isSafeToRemove(const std::string& pattern, std::string& report, st
 }
 
 
-bool CarpeDM::isSafeToRemove(std::set<std::string> patterns, std::string& report, std::vector<QueueReport>& vQr ) {
+void clear() {
+  gWc.clear(); gEq.clear();
+  newCovs.clear();
+  blacklist.clear(); remlist.clear(); entries.clear(); cursors.clear(); covenants.clear();
+  covenantsPerVertex.clear();
+  optmisedAnalysisReport.clear(); covenantReport.clear();
+}
+
+
+bool Safe2Remove::generateModel() {
+  //clear all previously generated data sets
+  clear();
+
+  //create working copy
+  vertex_map_t vertexMapTmp;
+  mycopy_graph<Graph>(gOri, gWc, vertexMapTmp);
+  //verify index translation
+  for (auto& it : vertexMapTmp) { //check vertex indices
+    if (it.first != it.second) {throw std::runtime_error(isSafeToRemove::exIntro +  "CpyGraph Map1 Idx Translation failed! This is beyond bad, contact Dev !");}
+  }
+  //add static equivalent edges of all pending flow commands to working copy
+  if (addDynamicDestinations(gWc, at)) { if(verbose) {sLog << "Added dynamic equivalents." << std::endl;} }
+  if(verbose) sLog << "Generating filtered graph view " << std::endl;
+  //Generate a filtered view, stripping all edges except default Destinations, resident flow destinations and dynamic flow destinations
+  boost::filtered_graph <Graph, static_eq<EpMap>, boost::keep_all > fg(gWc, make_static_eq(boost::get(&myEdge::type, gWc)), boost::keep_all());
+  //copy filtered view to normal graph to work with
+  vertex_map_t vertexMapEq;
+  mycopy_graph<boost::filtered_graph <Graph, static_eq<EpMap>, boost::keep_all >>(fg, gEq, vertexMapEq);
+  //verify index translation
+  for (auto& it : vertexMapEq) {
+    if (it.first != it.second) { throw std::runtime_error(isSafeToRemove::exIntro + "CpyGraph Map2 Idx Translation failed! This is beyond bad, contact Dev !");}
+  }
+
+  //try to get consistent image of active cursors
+  if(verbose) sLog << "Reading Cursors " << std::endl;
+  //FIXME this violates the scope ... is this really necessary?
+  updateModTime();
+  cursors = getAllCursors(!testmode); // Set to false for debugging system behaviour with static cursors
+
+  //Here comes the problem: resident commands are only of consquence if they AND their target Block are active
+  //Iteratively find out which cmds are executable and add equivalent edges for them. Do this until no more new edges have to be added
+  if (addResidentDestinations(gEq, gWc, cursors)) { if(verbose) {sLog << "Added resident equivalents." << std::endl;} }
+
+  // Model Optimisation
+  // Under certain conditions, (offending) default destinations can be replaced
+  if (optimisedS2R) {
+    if(verbose) {sLog << "Starting Optimiser (Update stale defDst)" << std::endl;}
+    if (updateStaleDefaultDestinations(gEq, at, newCovs, optmisedAnalysisReport)) { if(verbose) {sLog << "Updated stale Default Destinations to reduce wait time." << std::endl;} }
+  }
+
+}
+
+
+bool Safe2Remove::generateRemoves() {
+  //clear all previously generated data sets
+   for (auto& patternIt : patterns) {
+    // BEGIN Preparations: Entry points, Blacklist and working copy of the Graph
+    //Init our blacklist of critical nodes. All vertices in the pattern to be removed need to be on it
+    for (auto& nodeIt : getPatternMembers(patternIt)) {
+      auto x = at.lookupHash(hm.lookup(nodeIt, isSafeToRemove::exIntro +  "Could not find pattern <" + patternIt + "> member node "), isSafeToRemove::exIntro +  "Could not find pattern <" + patternIt + "> member node ! ");
+      remlist.insert(x->v);
+      covenantsPerVertex[x->v].insert(null_vertex);
+    }
+    //Find and list all entry nodes of patterns 2B removed
+    std::string sTmp = getPatternEntryNode(patternIt);
+    auto x = at.lookupHash(hm.lookup(sTmp, isSafeToRemove::exIntro +  "Could not find pattern <" + patternIt + "> entry node"), isSafeToRemove::exIntro +  "Could not find pattern <" + patternIt + "> entry node");
+    entries.insert(x->v);
+
+  }
+
+  blacklist = remlist;
+  
+
+}
+
+
+bool CarpeDM::isSafeToRemove(CovenantTable& ctAux, std::set<std::string> patterns, std::string& report, std::vector<QueueReport>& vQr ) {
   //std::cout << "verbose " << (int)verbose << " debug " << (int)debug << " sim " << (int)sim << " testmode " << (int)testmode << " optimisedS2R " << (int)optimisedS2R << std::endl;
 
 
   bool isSafe = true, allCovenantsUncritical = true;
   Graph& g        = gDown;
   AllocTable& at  = atDown;
-  CovenantTable ctAux; //Global CovenantTable is called ct
+  //CovenantTable ctAux; //Global CovenantTable is called ct
   Graph gTmp, gEq;
   vertex_set_t blacklist, remlist, entries, cursors, covenants; //hashes of all covenants
   vertex_set_map_t covenantsPerVertex;
@@ -233,11 +309,7 @@ bool CarpeDM::isSafeToRemove(std::set<std::string> patterns, std::string& report
       //find covname in ctAux and copy found entry to ct watchlist
       auto x = ctAux.lookup(covName);
       if (!ctAux.isOk(x)) { throw std::runtime_error(isSafeToRemove::exIntro + ": Lookup of <" + covName + "> in covenantAuxTable failed\n");}
-      if (!ct.insert(x))  { throw std::runtime_error(isSafeToRemove::exIntro + ": Insertion of <" + covName + "> in covenantTable failed\n");} ;
-
-      auto y = ct.lookup(covName);
-      if (!ct.isOk(y)) { throw std::runtime_error(isSafeToRemove::exIntro + ": Lookup of <" + covName + "> in covenantTable failed\n");}
-
+   
       //and report
       report += "//" + covName + " p " + std::to_string(y->prio) + " s " + std::to_string(y->slot) + " chk 0x" + std::to_string(y->chkSum) + "\n";
     }
@@ -259,7 +331,8 @@ bool CarpeDM::isSafeToRemove(std::set<std::string> patterns, std::string& report
   return isSafe;
 }
 
-bool CarpeDM::isOptimisableEdge(edge_t e, Graph& g) {
+bool CarpeDM::isOptimisableEdge(edge_t e) {
+  Graph& g = gEq; //set working graph to static equivalent model
 
   vertex_t toBeChecked = target(e, g);
   Graph::in_edge_iterator in_begin, in_end, in_cur;
@@ -271,41 +344,6 @@ bool CarpeDM::isOptimisableEdge(edge_t e, Graph& g) {
   return true;
 }
 
-bool CarpeDM::isCovenantPending(const std::string& covName) {
-
-  cmI x = ct.lookup(covName);
-  if (!ct.isOk(x)) {
-  //sLog << "DBG unknonwn";
-  return false;} //throw std::runtime_error(isSafeToRemove::exIntro + ": Lookup of <" + covName + "> in covenantTable failed\n");
-  return isCovenantPending(x);
-}
-
-bool CarpeDM::isCovenantPending(cmI cov) {
-  QueueReport qr;
-  getQReport(cov->name, qr);
-  QueueElement& qe = qr.aQ[cov->prio].aQe[cov->slot];
-
-  if (cov->chkSum == ct.genChecksum(qe))  return true;
-  else                                    return false;
-}
-
-unsigned CarpeDM::updateCovenants() {
-
-  unsigned cnt = 0;
-  vStrC toDelete;
-  for (cmI it = ct.getTable().begin(); it != ct.getTable().end(); it++ ) {
-    if (!isCovenantPending(it)) {
-      if(verbose) std::cout << "Covenant " << it->name << " complete, removing from table" << std::endl;
-      toDelete.push_back(it->name);
-    }
-    cnt++;
-  }
-
-  for (auto it : toDelete) { ct.remove(it); }
-
-  return cnt;
-}
-
 
 bool CarpeDM::isSafetyCritical(vertex_set_t& c) {
   if (c.find(null_vertex) != c.end()) return true;
@@ -314,7 +352,9 @@ bool CarpeDM::isSafetyCritical(vertex_set_t& c) {
 
 
 //recursively inserts all vertex idxs of the tree reachable (via in edges) from start vertex into the referenced set
-void CarpeDM::getReverseNodeTree(vertex_t v, vertex_set_t& sV, Graph& g, vertex_set_map_t& covenantsPerVertex, vertex_t covenant) {
+void CarpeDM::getReverseNodeTree(vertex_t v, vertex_set_t& sV, vertex_set_map_t& covenantsPerVertex, vertex_t covenant) {
+  Graph& g = gEq; //set working graph to static equivalent model
+
   vertex_t nextCovenant;
   Graph::in_edge_iterator in_begin, in_end, in_cur;
   //Do the crawl
@@ -326,7 +366,7 @@ void CarpeDM::getReverseNodeTree(vertex_t v, vertex_set_t& sV, Graph& g, vertex_
     sV.insert(source(*in_cur, g));
     if (cpvs.find(covenant) != cpvs.end()) { continue; }
 
-    if (isOptimisableEdge(*in_cur, g)) {
+    if (isOptimisableEdge(*in_cur)) {
       if (verbose) { sLog << " Optimisable:  " << g[source(*in_cur, g)].name << "->" << g[target(*in_cur, g)].name << std::endl; }
       nextCovenant = source(*in_cur, g);
     } else {
@@ -334,7 +374,7 @@ void CarpeDM::getReverseNodeTree(vertex_t v, vertex_set_t& sV, Graph& g, vertex_
     }
 
     cpvs.insert(nextCovenant);
-    getReverseNodeTree(source(*in_cur, g), sV, g, covenantsPerVertex, nextCovenant);
+    getReverseNodeTree(source(*in_cur, g), sV, covenantsPerVertex, nextCovenant);
 
 
 
