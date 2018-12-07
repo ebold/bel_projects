@@ -112,6 +112,10 @@ public:
     std::string tmp = std::to_string(qe.pending) + std::to_string(qe.validTime) + qe.sType + qe.flowDst + qe.flowDstPattern + std::to_string(qe.flowPerma);
     return HashMap::hash(tmp);
   }
+  
+  cmI lookup(const std::string& s)   {auto tmp = a.get<Name>().find(s); return a.iterator_to(*tmp);}
+
+  bool isOk(cmI it) const {return (it != a.end()); }
 
   bool insert(const std::string& name, uint8_t prio, uint8_t slot, const QueueElement& qe) {
     CovenantMeta m = CovenantMeta(name, prio, slot, genChecksum(qe));
@@ -119,16 +123,19 @@ public:
     return x.second;
   }
 
-
-
-  cmI lookup(const std::string& s)   {auto tmp = a.get<Name>().find(s); return a.iterator_to(*tmp);}
-
-  bool isOk(cmI it) const {return (it != a.end()); }
-
   bool insert(cmI& e) {
     CovenantMeta m = CovenantMeta(e->name, e->prio, e->slot, e->chkSum);
     auto x = a.insert(m);
     return x.second;
+  }
+
+  unsigned insert(const CovenantTable& src) {
+    unsigned cnt = 0;
+    for (cmI x = src.a.begin(); x != src.a.end(); x++) { 
+      //how to report failures?
+      cnt += (unsigned)insert(x);
+    }
+    return cnt;
   }
 
   bool remove(const std::string& s) {
@@ -169,13 +176,6 @@ public:
     if (cov->chkSum == ct.genChecksum(qe))  return true;
     else                                    return false;
   }
-
-
-  unsigned add(const CovenantTable& src) {
-    this += src;
-    return src.getSize();
-  }
-
 
   unsigned removeFullfilled() {
     unsigned cnt = 0;
