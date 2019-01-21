@@ -11,6 +11,9 @@ SHARED_START    = $(shell printf "0x%x" $$(( $(BUILDID_START) + $(BUILDID_SIZE) 
 INTADR_OFFS     = $(shell printf "0x%x" $(RAM_OFFS))
 PLATFORM       ?= ""
 
+GCCPATH         = $(shell whereis lm32-elf-gcc | cut -d ':' -f2 | sed 's/[^a-zA-Z0-9/-]//g')
+GCCBUILD        = $(shell strings $(GCCPATH) | grep -o "install/lm32-gcc.*" | head -1 | cut -d "/" -f2)
+GCCVERSION      = $(shell lm32-elf-gcc --version | grep gcc)
 
 ifdef SHARED_SIZE
 	SHARED = "$(SHARED_SIZE)"
@@ -47,7 +50,7 @@ CBR_DATE := `date +"%a %b %d %H:%M:%S %Z %Y"`
 CBR_USR  := `git config user.name`
 CBR_MAIL := `git config user.email`
 CBR_HOST := `hostname`
-CBR_GCC  := `lm32-elf-gcc --version | grep gcc`
+CBR_GCC  := $(GCCVERSION) (build: $(GCCBUILD))
 CBR_FLGS := $(CFLAGS)
 CBR_KRNL := `uname -mrs`
 CBR_OS   := `lsb_release -d -s | tr -d '"'` 
