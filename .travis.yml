@@ -31,8 +31,13 @@ before_install:
 - sudo apt-get install libglib2.0
 - sudo apt-get install xsltproc
 
+# hack to fix make failure
 before_script:
+- pwd
+- cat ip_cores/fpga-config-space/pcie-wb/Makefile | grep spec_wb.o
 - cat ip_cores/fpga-config-space/pcie-wb/Makefile | grep spec_wb.o | sed 's/spec_wb.o//' ip_cores/fpga-config-space/pcie-wb/Makefile
+- cat ip_cores/fpga-config-space/pcie-wb/Makefile | grep spec_wb.o
+
 
 script:
 - ./fix-git.sh
