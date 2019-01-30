@@ -35,7 +35,7 @@ before_install:
 before_script:
 - pwd
 - cat ip_cores/fpga-config-space/pcie-wb/Makefile | grep spec_wb.o
-- cat ip_cores/fpga-config-space/pcie-wb/Makefile | grep spec_wb.o | sed 's/spec_wb.o//' ip_cores/fpga-config-space/pcie-wb/Makefile
+- cat ip_cores/fpga-config-space/pcie-wb/Makefile | grep spec_wb.o | sed -i 's/spec_wb.o//g' ip_cores/fpga-config-space/pcie-wb/Makefile
 - cat ip_cores/fpga-config-space/pcie-wb/Makefile | grep spec_wb.o
 
 
