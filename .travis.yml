@@ -8,7 +8,7 @@ compiler:
 
 branches:
   only:
-  - doomsday
+  - temp_sense
 
 env:
   global:
