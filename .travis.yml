@@ -8,6 +8,7 @@ compiler:
 
 branches:
   only:
+  - master
   - temp_sense
 
 env:
@@ -30,4 +31,6 @@ before_install:
 - sudo apt-get install libglib2.0
 - sudo apt-get install xsltproc
 
-script: ./fix-git.sh && make clean && make etherbone
+script:
+- ./fix-git.sh
+- make etherbone
