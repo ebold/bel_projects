@@ -58,7 +58,7 @@ entity wb_temp_sense is
     g_ts_data_width : natural := 8;   -- temperature sensor data width
     g_ts_clk_div    : natural := 80;  -- temperature sensor clock divider
     g_ts_clr_cycles : natural := 3;   -- adcclk cycles for clr, min=1
-    g_ts_adc_cycles : natural := 12   -- adcclk cycles for a/d conversion, nom=10
+    g_ts_adc_cycles : natural := 11   -- adcclk cycles for a/d conversion, nom=10
           );
   port (
     -- generic system interface
