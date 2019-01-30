@@ -18,18 +18,18 @@ env:
 
 before_install:
 - echo $(uname -a)
-- apt-get install build-essential --install-suggests
-- apt-get install docbook-utils
-- apt-get install libreadline-dev
-- apt-get install zlib1g:i386
-- apt-get install 
-- apt-get install linux-headers-$(uname -r)
-- apt-get install sdcc fxload
-- apt-get install autotools-dev
-- apt-get install automake
-- apt-get install libtool
-- apt-get install libglibmm-2.4
-- apt-get install libglib2.0
-- apt-get install xsltproc
+- sudo apt-get install build-essential --install-suggests
+- sudo apt-get install docbook-utils
+- sudo apt-get install libreadline-dev
+- sudo apt-get install zlib1g:i386
+- sudo apt-get install 
+- sudo apt-get install linux-headers-$(uname -r)
+- sudo apt-get install sdcc fxload
+- sudo apt-get install autotools-dev
+- sudo apt-get install automake
+- sudo apt-get install libtool
+- sudo apt-get install libglibmm-2.4
+- sudo apt-get install libglib2.0
+- sudo apt-get install xsltproc
 
 script: ./fix-git.sh && make clean && make etherbone
