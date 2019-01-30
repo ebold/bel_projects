@@ -8,8 +8,6 @@ compiler:
 
 branches:
   only:
-  - master
-  - doomsday
   - temp_sense
 
 env:
