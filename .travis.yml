@@ -31,7 +31,7 @@ before_install:
 - sudo apt-get install libglib2.0
 - sudo apt-get install xsltproc
 
-pre_script:
+before_script:
 - cat ip_cores/fpga-config-space/pcie-wb/Makefile | grep spec_wb.o | sed 's/spec_wb.o//' ip_cores/fpga-config-space/pcie-wb/Makefile
 
 script:
