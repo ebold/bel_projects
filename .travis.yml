@@ -17,6 +17,9 @@ env:
 
 before_install:
 - echo $(uname -a)
+
+# install required packages
+install:
 - sudo apt-get install build-essential --install-suggests
 - sudo apt-get install docbook-utils
 - sudo apt-get install libreadline-dev
@@ -31,17 +34,13 @@ before_install:
 - sudo apt-get install libglib2.0
 - sudo apt-get install xsltproc
 
-# hack to fix make failure
+# hack Makefile to fix make failure regarding spec_wb.o
+# update submodules
 before_script:
-- pwd
-- cat ip_cores/fpga-config-space/pcie-wb/Makefile
 - sed -i 's/spec_wb.o//g' ip_cores/fpga-config-space/pcie-wb/Makefile
-- cat ip_cores/fpga-config-space/pcie-wb/Makefile
-
+- ./fix-git.sh
 
 script:
-- ./fix-git.sh
-- make clean
 - make etherbone
 - make tools
 - make driver
