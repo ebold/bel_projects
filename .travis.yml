@@ -41,10 +41,14 @@ before_script:
 - sed -i 's/spec_wb.o//g' ip_cores/fpga-config-space/pcie-wb/Makefile
 - ./fix-git.sh
 
+# build etherbone and install
 script:
 - make etherbone
 - make tools
 - make driver
 - sudo make install
+
+# build saftlib and install (optional)
+after_success:
 - make saftlib
 - sudo make saftlib-install
