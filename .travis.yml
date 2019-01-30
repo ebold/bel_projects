@@ -33,4 +33,5 @@ before_install:
 
 script:
 - ./fix-git.sh
+- make clean
 - make etherbone
