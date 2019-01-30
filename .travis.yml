@@ -1,0 +1,33 @@
+language: cpp
+os: linux
+dist: xenial
+sudo: required
+
+compiler:
+- gcc
+
+branches:
+  only:
+  - doomsday
+
+env:
+  global:
+  - LC_NUMERIC=en_us.UTF8
+
+before_install:
+- echo $(uname -a)
+- apt-get install build-essential --install-suggests
+- apt-get install docbook-utils
+- apt-get install libreadline-dev
+- apt-get install zlib1g:i386
+- apt-get install 
+- apt-get install linux-headers-$(uname -r)
+- apt-get install sdcc fxload
+- apt-get install autotools-dev
+- apt-get install automake
+- apt-get install libtool
+- apt-get install libglibmm-2.4
+- apt-get install libglib2.0
+- apt-get install xsltproc
+
+script: ./fix-git.sh && make clean && make etherbone
