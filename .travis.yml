@@ -45,3 +45,5 @@ script:
 - make tools
 - make driver
 - sudo make install
+- make saftlib
+- sudo make saftlib-install
