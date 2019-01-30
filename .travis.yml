@@ -44,3 +44,4 @@ script:
 - make etherbone
 - make tools
 - make driver
+- make saftlib
