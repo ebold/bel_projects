@@ -35,11 +35,11 @@ install:
 - sudo apt-get install libglib2.0
 - sudo apt-get install xsltproc
 
-# hack Makefile to fix make failure regarding spec_wb.o
 # update submodules
+# hack Makefile to fix make failure regarding spec_wb.o
 before_script:
-- sed -i 's/spec_wb.o//g' ip_cores/fpga-config-space/pcie-wb/Makefile
 - ./fix-git.sh
+- sed -i 's/spec_wb.o//g' ip_cores/fpga-config-space/pcie-wb/Makefile
 
 # build etherbone and install
 script:
