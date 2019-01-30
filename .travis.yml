@@ -35,3 +35,5 @@ script:
 - ./fix-git.sh
 - make clean
 - make etherbone
+- make tools
+- make driver
