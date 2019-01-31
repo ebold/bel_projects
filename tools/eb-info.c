@@ -66,6 +66,7 @@ static void help(void) {
   fprintf(stderr, "\n");
   fprintf(stderr, "Report bugs to <w.terpstra@gsi.de>\n");
   fprintf(stderr, "Testing Travis build in temp_sense branch\n");
+  fprintf(stderr, "Testing Travis build in temp_sense branch\n");
 }
 
 static void die(const char* msg, eb_status_t status) {
