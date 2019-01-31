@@ -6,16 +6,14 @@ sudo: required
 compiler:
 - gcc
 
-branches:
-  only:
-  - master
-  - doomsday
-  - temp_sense
+# uncomment to build the listed branches only
+#branches:
+#  only:
+#  - master
+#  - doomsday
+#  - temp_sense
 
-env:
-  global:
-  - LC_NUMERIC=en_us.UTF8
-
+# dummy echo
 before_install:
 - echo $(uname -a)
 
@@ -49,6 +47,6 @@ script:
 - sudo make install
 
 # build saftlib and install (optional)
-after_success:
-- make saftlib
-- sudo make saftlib-install
+#after_success:
+#- make saftlib
+#- sudo make saftlib-install
