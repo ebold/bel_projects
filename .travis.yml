@@ -6,11 +6,11 @@ sudo: required
 compiler:
 - gcc
 
-branches:
-  only:
-  - master
-  - doomsday
-  - temp_sense
+#branches:
+#  only:
+#  - master
+#  - doomsday
+#  - temp_sense
 
 env:
   global:
