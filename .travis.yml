@@ -19,19 +19,19 @@ before_install:
 
 # install required packages
 install:
-- sudo apt-get install build-essential --install-suggests
-- sudo apt-get install docbook-utils
-- sudo apt-get install libreadline-dev
-- sudo apt-get install zlib1g:i386
-- sudo apt-get install 
-- sudo apt-get install linux-headers-$(uname -r)
-- sudo apt-get install sdcc fxload
-- sudo apt-get install autotools-dev
-- sudo apt-get install automake
-- sudo apt-get install libtool
-- sudo apt-get install libglibmm-2.4
-- sudo apt-get install libglib2.0
-- sudo apt-get install xsltproc
+- sudo apt-get update
+- sudo apt-get install build-essential --install-suggests -y
+- sudo apt-get install docbook-utils -y
+- sudo apt-get install libreadline-dev -y
+- sudo apt-get install zlib1g:i386 -y
+- sudo apt-get install linux-headers-$(uname -r) -y
+- sudo apt-get install sdcc fxload -y
+- sudo apt-get install autotools-dev -y
+- sudo apt-get install automake -y
+- sudo apt-get install libtool -y
+- sudo apt-get install libglibmm-2.4 -y
+- sudo apt-get install libglib2.0 -y
+- sudo apt-get install xsltproc -y
 
 # update submodules
 # hack Makefile to fix make failure regarding spec_wb.o
