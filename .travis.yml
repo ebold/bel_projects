@@ -13,13 +13,11 @@ compiler:
 #  - doomsday
 #  - temp_sense
 
-# dummy echo
 before_install:
-- echo $(uname -a)
+- sudo apt-get update
 
 # install required packages
 install:
-- sudo apt-get update
 - sudo apt-get install build-essential --install-suggests -y
 - sudo apt-get install docbook-utils -y
 - sudo apt-get install libreadline-dev -y
