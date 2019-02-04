@@ -48,6 +48,7 @@ script:
 # build firmware (lm32 toolchain, wrpc-sw etc)
 # build saftlib and install (optional)
 after_success:
+- cd ip_cores/wrpc-sw && git log -n 5 --oneline && cd ../..
 - make firmware
 - make saftlib -j$(nproc)
 - sudo make saftlib-install
