@@ -1,4 +1,10 @@
-language: cpp
+# Copyright (C) 2019 GSI Helmholtz Centre for Heavy Ion Research GmbH
+#
+# Build instructions for the bel_projects project using Travis CI
+#
+# Author Enkhbold Ochirsuren <E.Ochirsuren@gsi.de>
+
+anguage: cpp
 os: linux
 dist: xenial
 sudo: required
@@ -6,14 +12,9 @@ sudo: required
 compiler:
 - gcc
 
-# uncomment to build the listed branches only
-#branches:
-#  only:
-#  - master
-#  - doomsday
-#  - temp_sense
-
+# show CPU info, update package manager
 before_install:
+- lscpu
 - sudo apt-get update
 
 # install required packages
@@ -44,7 +45,9 @@ script:
 - make driver
 - sudo make install
 
+# build firmware (lm32 toolchain, wrpc-sw etc)
 # build saftlib and install (optional)
-#after_success:
-#- make saftlib
-#- sudo make saftlib-install
+after_success:
+- make firmware
+- make saftlib -j$(nproc)
+- sudo make saftlib-install
