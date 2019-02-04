@@ -38,17 +38,16 @@ before_script:
 - ./fix-git.sh
 - sed -i 's/spec_wb.o//g' ip_cores/fpga-config-space/pcie-wb/Makefile
 
-# build etherbone and install
+# build sub projects and install
 script:
 - make etherbone
 - make tools
+- cd ip_cores/wrpc-sw && git log -n 5 --oneline && cd ../..
+- make firmware
 - make driver
 - sudo make install
 
-# build firmware (lm32 toolchain, wrpc-sw etc)
 # build saftlib and install (optional)
 after_success:
-- cd ip_cores/wrpc-sw && git log -n 5 --oneline && cd ../..
-- make firmware
 - make saftlib -j$(nproc)
 - sudo make saftlib-install
