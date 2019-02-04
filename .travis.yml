@@ -45,7 +45,9 @@ script:
 - make driver
 - sudo make install
 
+# build firmware (lm32 toolchain, wrpc-sw etc)
 # build saftlib and install (optional)
-#after_success:
-#- make saftlib
-#- sudo make saftlib-install
+after_success:
+- make firmware
+- make saftlib -j$(nproc)
+- sudo make saftlib-install
